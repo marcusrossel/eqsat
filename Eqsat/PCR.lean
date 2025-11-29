@@ -16,13 +16,11 @@ def support (per : PER α) : Set α :=
 
 variable [Signature S]
 
-open Signature Term
-
 def Congruent (per : PER <| Term S) : Prop :=
-  ∀ {fn : S} {as bs : Args fn}, as = bs → app fn as ∈ per.support → per (app fn as) (app fn bs)
+  ∀ {fn : S} {as bs : Term.Args fn}, as = bs → fn ° as ∈ per.support → per (fn ° as) (fn ° bs)
 
 def Reachable (per : PER <| Term S) : Prop :=
-  ∀ {fn : S} {as : Args fn}, app fn as ∈ per.support → ∀ i, as i ∈ per.support
+  ∀ {fn : S} {as : Term.Args fn}, fn ° as ∈ per.support → ∀ i, as i ∈ per.support
 
 end PER
 

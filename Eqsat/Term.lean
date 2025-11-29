@@ -27,10 +27,15 @@ inductive Pattern (S V) [Signature S] where
   | var (v : V)
   | app (fn : S) (args : Fin (arity fn) → Pattern S V)
 
+instance [Signature S] : Coe V (Pattern S V) where
+  coe := .var
+
+infixl:100 " ° " => Pattern.app
+
 @[simp]
 def Pattern.vars [Signature S] : Pattern S V → Set V
-  | var v      => {v}
-  | app _ args => ⋃ i, vars (args i)
+  | (v : V)  => {v}
+  | _ ° args => ⋃ i, vars (args i)
 
 abbrev Term (S) [Signature S] :=
   Pattern S Empty
@@ -40,14 +45,11 @@ namespace Term
 nonrec abbrev Args [Signature S] (s : S) :=
   Args s (Term S)
 
-abbrev app [Signature S] (fn : S) (args : Args fn) :=
-  Pattern.app fn args
-
 def toExtended [Signature S] : Term S → @Term (S ⊕ E) Signature.instExtend
-  | .app fn args => .app (.inl fn) fun i => toExtended (args i)
+  | fn ° args => (.inl fn) ° fun i => toExtended (args i)
 
 instance [Signature S] : Coe (Term S) (@Term (S ⊕ E) Signature.instExtend) where
   coe := Term.toExtended
 
 instance [Signature S] : Coe E (@Term (S ⊕ E) Signature.instExtend) where
-  coe e := .app (.inr e) nofun
+  coe e := (.inr e) ° nofun

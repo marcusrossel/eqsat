@@ -12,7 +12,7 @@ structure Transition (S Q) [Signature S] where
 --       variables. Thus, the only rewrite steps which can occur are subterm replacements.
 def Transition.toRewrite [Signature S] (trans : Transition S Q) :
     Rewrite (S ⊕ Q) Empty where
-  lhs := .app (.inl trans.fn) fun i => ↑(trans.args i)
+  lhs := (.inl trans.fn) ° fun i => ↑(trans.args i)
   rhs := ↑trans.dst
 
 structure _root_.TreeAutomaton (S Q) [Signature S] where
@@ -31,7 +31,7 @@ def Accepts (auto : TreeAutomaton S Q) (q : Q) (t : Term S) : Prop :=
 
 -- TODO: Perhaps we should just generalize this to the final accepting thing being a term, not just a state.
 --       Then this also speicalizes to the state case.
-theorem Accepts.child {auto : TreeAutomaton S Q} (acc : Accepts auto q <| .app fn as) (i) :
+theorem Accepts.child {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° as) (i) :
     ∃ qᵢ : Q, Accepts auto qᵢ (as i) := by
   sorry
   /-cases acc
