@@ -9,6 +9,13 @@ def Subst.apply {S V} [Signature S] (σ : Subst S V) : Pattern S V → Term S
   | .var v       => σ v
   | .app fn args => .app fn (apply σ <| args ·)
 
+@[simp]
+theorem Subst.apply_no_vars {S} [Signature S] (σ : Subst S Empty) (p : Pattern S Empty) :
+    σ.apply p = p := by
+  induction p
+  case var => contradiction
+  case app => simp [apply, *]
+
 structure Rewrite where
   lhs : Pattern S V
   rhs : Pattern S V
@@ -17,13 +24,15 @@ structure Rewrite where
 abbrev TRS :=
   Set (Rewrite S V)
 
-inductive TRS.Step {S V} [Signature S] (θ : TRS S V) : Term S → Term S → Prop where
+namespace TRS
+
+inductive Step {S V} [Signature S] (θ : TRS S V) : Term S → Term S → Prop where
   | subst (σ : Subst S V) (mem : rw ∈ θ) : Step θ (σ.apply rw.lhs) (σ.apply rw.rhs)
-  | child (fn : S) (as bs : Term.Args fn) {i} (step : Step θ (as i) (bs i)) : Step θ (.app fn as) (.app fn bs)
+  | child (fn : S) (as : Term.Args fn) {i} (step : Step θ (as i) a) : Step θ (.app fn as) (.app fn <| as.set i a)
 
 notation t₁ " →[" θ "] " t₂ => TRS.Step θ t₁ t₂
 
-abbrev TRS.Steps {S V} [Signature S] (θ : TRS S V) :=
-  Relation.ReflTransGen (TRS.Step θ)
+abbrev Steps {S V} [Signature S] (θ : TRS S V) :=
+  Relation.ReflTransGen (Step θ)
 
-notation t₁ " →*[" θ "] " t₂ => TRS.Steps θ t₁ t₂
+notation t₁ " →*[" θ "] " t₂ => Steps θ t₁ t₂

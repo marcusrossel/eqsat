@@ -33,6 +33,4 @@ def pcr (graph : EGraph S Q) : PCR S where
   reach h i := by
     simp only [PER.support, and_self, Set.mem_setOf_eq] at *
     obtain ⟨_, h⟩ := h
-    simp [EClass.Represents, TreeAutomaton.Accepts] at *
-    sorry -- TODO: It might be useful to use an own definition of refl-trans closure where the
-          --       single steps happens at the front not the back.
+    exact h.child i

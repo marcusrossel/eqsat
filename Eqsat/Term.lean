@@ -20,6 +20,9 @@ open Signature
 abbrev Args [Signature S] (s : S) (α : Type _) :=
   Fin (arity s) → α
 
+def Args.set [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) (a : α) : Args s α :=
+  fun j => if i = j then a else as j
+
 inductive Pattern (S V) [Signature S] where
   | var (v : V)
   | app (fn : S) (args : Fin (arity fn) → Pattern S V)
@@ -32,13 +35,15 @@ def Pattern.vars [Signature S] : Pattern S V → Set V
 abbrev Term (S) [Signature S] :=
   Pattern S Empty
 
-nonrec abbrev Term.Args [Signature S] (s : S) :=
+namespace Term
+
+nonrec abbrev Args [Signature S] (s : S) :=
   Args s (Term S)
 
-abbrev Term.app [Signature S] (fn : S) (args : Args fn) :=
+abbrev app [Signature S] (fn : S) (args : Args fn) :=
   Pattern.app fn args
 
-def Term.toExtended [Signature S] : Term S → @Term (S ⊕ E) Signature.instExtend
+def toExtended [Signature S] : Term S → @Term (S ⊕ E) Signature.instExtend
   | .app fn args => .app (.inl fn) fun i => toExtended (args i)
 
 instance [Signature S] : Coe (Term S) (@Term (S ⊕ E) Signature.instExtend) where
