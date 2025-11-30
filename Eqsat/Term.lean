@@ -5,15 +5,26 @@ import Mathlib.Order.SetNotation
 class Signature (S : Type _) where
   arity : S → Nat
 
-@[simp]
-def Signature.extend (S E) [Signature S] : Signature (S ⊕ E) where
-  arity
-    | .inl s => arity s
-    | .inr _ => 0
+inductive Signature.Extended (S E : Type _) [Signature S] where
+  | sig (s : S)
+  | ext (e : E)
+
+infixl:100 " ⨄ " => Signature.Extended
+
+instance [Signature S] : Coe S (S ⨄ E) where
+  coe := .sig
+
+instance [Signature S] : Coe E (S ⨄ E) where
+  coe := .ext
 
 @[simp]
-instance Signature.instExtend [Signature S] : Signature (S ⊕ E) :=
-  Signature.extend S E
+nonrec def Signature.Extended.arity {S E} [Signature S] : S ⨄ E → Nat
+  | .sig s => arity s
+  | .ext _ => 0
+
+@[simp]
+instance [Signature S] : Signature (S ⨄ E) where
+  arity := Signature.Extended.arity
 
 open Signature
 
@@ -23,6 +34,8 @@ abbrev Args [Signature S] (s : S) (α : Type _) :=
 def Args.set [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) (a : α) : Args s α :=
   fun j => if i = j then a else as j
 
+notation:(arg + 1) as "[" i " := " a "]" => Args.set as i a
+
 inductive Pattern (S V) [Signature S] where
   | var (v : V)
   | app (fn : S) (args : Fin (arity fn) → Pattern S V)
@@ -30,7 +43,7 @@ inductive Pattern (S V) [Signature S] where
 instance [Signature S] : Coe V (Pattern S V) where
   coe := .var
 
-infixl:100 " ° " => Pattern.app
+infixl:arg " ° " => Pattern.app
 
 @[simp]
 def Pattern.vars [Signature S] : Pattern S V → Set V
@@ -45,11 +58,13 @@ namespace Term
 nonrec abbrev Args [Signature S] (s : S) :=
   Args s (Term S)
 
-def toExtended [Signature S] : Term S → @Term (S ⊕ E) Signature.instExtend
-  | fn ° args => (.inl fn) ° fun i => toExtended (args i)
+abbrev extend [Signature S] : Term S → Term (S ⨄ E)
+  | fn ° args => fn ° (extend <| args ·)
 
-instance [Signature S] : Coe (Term S) (@Term (S ⊕ E) Signature.instExtend) where
-  coe := Term.toExtended
+prefix:100 "⇈" => extend
 
-instance [Signature S] : Coe E (@Term (S ⊕ E) Signature.instExtend) where
-  coe e := (.inr e) ° nofun
+instance [Signature S] : Coe (Term S) (Term <| S ⨄ E) where
+  coe := extend
+
+instance [Signature S] : Coe E (Term <| S ⨄ E) where
+  coe e := e ° nofun
