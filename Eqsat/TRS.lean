@@ -32,9 +32,9 @@ inductive Step {S V} [Signature S] (θ : TRS S V) : Term S → Term S → Prop w
   | subst (σ : Subst S V) (mem : rw ∈ θ) : Step θ rw.lhs[σ] rw.rhs[σ]
   | child (fn : S) (as : Term.Args fn) {i} (step : Step θ (as i) a) : Step θ (fn ° as) (fn ° as[i := a])
 
-notation t₁ " →[" θ "] " t₂ => TRS.Step θ t₁ t₂
+notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
 
 abbrev Steps {S V} [Signature S] (θ : TRS S V) :=
-  Relation.ReflTransGen (Step θ)
+  Relation.ReflTransGen (· -[θ]→ ·)
 
-notation t₁ " →*[" θ "] " t₂ => Steps θ t₁ t₂
+notation t₁ " -[" θ "]→* " t₂ => Steps θ t₁ t₂

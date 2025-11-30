@@ -5,11 +5,13 @@ import Mathlib.Order.SetNotation
 class Signature (S : Type _) where
   arity : S → Nat
 
-inductive Signature.Extended (S E : Type _) [Signature S] where
+namespace Signature
+
+inductive Extended (S E : Type _) [Signature S] where
   | sig (s : S)
   | ext (e : E)
 
-infixl:100 " ⨄ " => Signature.Extended
+infixl:100 " ⨄ " => Extended
 
 instance [Signature S] : Coe S (S ⨄ E) where
   coe := .sig
@@ -18,13 +20,15 @@ instance [Signature S] : Coe E (S ⨄ E) where
   coe := .ext
 
 @[simp]
-nonrec def Signature.Extended.arity {S E} [Signature S] : S ⨄ E → Nat
+nonrec def Extended.arity {S E} [Signature S] : S ⨄ E → Nat
   | .sig s => arity s
   | .ext _ => 0
 
 @[simp]
 instance [Signature S] : Signature (S ⨄ E) where
   arity := Signature.Extended.arity
+
+end Signature
 
 open Signature
 
@@ -35,6 +39,9 @@ def Args.set [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) (a : α
   fun j => if i = j then a else as j
 
 notation:(arg + 1) as "[" i " := " a "]" => Args.set as i a
+
+instance [Signature S] {s : S} : Coe (Args s E) (Args s <| S ⨄ E) where
+  coe as := (as ·)
 
 inductive Pattern (S V) [Signature S] where
   | var (v : V)
@@ -55,16 +62,24 @@ abbrev Term (S) [Signature S] :=
 
 namespace Term
 
-nonrec abbrev Args [Signature S] (s : S) :=
+variable [Signature S]
+
+nonrec abbrev Args (s : S) :=
   Args s (Term S)
 
-abbrev extend [Signature S] : Term S → Term (S ⨄ E)
+inductive ExtLT : Term (S ⨄ E) → Term (S ⨄ E) → Prop where
+  | head                            : ExtLT ((.sig _) ° _) ((.ext _) ° _)
+  | child {as} (h : ExtLT (as i) a) : ExtLT ((.sig fn) ° as) ((.sig fn) ° as[i := a])
+
+abbrev extend : Term S → Term (S ⨄ E)
   | fn ° args => fn ° (extend <| args ·)
 
-prefix:100 "⇈" => extend
-
-instance [Signature S] : Coe (Term S) (Term <| S ⨄ E) where
+instance : Coe (Term S) (Term <| S ⨄ E) where
   coe := extend
 
-instance [Signature S] : Coe E (Term <| S ⨄ E) where
+instance : Coe E (Term <| S ⨄ E) where
   coe e := e ° nofun
+
+instance : WellFoundedRelation (Term <| S ⨄ E) where
+  rel := ExtLT
+  wf := sorry
