@@ -35,6 +35,7 @@ open Signature
 abbrev Args [Signature S] (s : S) (α : Type _) :=
   Fin (arity s) → α
 
+@[simp]
 def Args.set [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) (a : α) : Args s α :=
   fun j => if i = j then a else as j
 
@@ -67,10 +68,6 @@ variable [Signature S]
 nonrec abbrev Args (s : S) :=
   Args s (Term S)
 
-inductive ExtLT : Term (S ⨄ E) → Term (S ⨄ E) → Prop where
-  | head                            : ExtLT ((.sig _) ° _) ((.ext _) ° _)
-  | child {as} (h : ExtLT (as i) a) : ExtLT ((.sig fn) ° as) ((.sig fn) ° as[i := a])
-
 abbrev extend : Term S → Term (S ⨄ E)
   | fn ° args => fn ° (extend <| args ·)
 
@@ -79,7 +76,3 @@ instance : Coe (Term S) (Term <| S ⨄ E) where
 
 instance : Coe E (Term <| S ⨄ E) where
   coe e := e ° nofun
-
-instance : WellFoundedRelation (Term <| S ⨄ E) where
-  rel := ExtLT
-  wf := sorry

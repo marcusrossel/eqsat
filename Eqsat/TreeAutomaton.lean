@@ -24,38 +24,66 @@ def trs (auto : TreeAutomaton S Q) : TRS (S ⨄ Q) Empty :=
 notation t₁ " -[" auto "]→ " t₂ => t₁ -[TreeAutomaton.trs auto]→ t₂
 notation t₁ " -[" auto "]→* " t₂ => t₁ -[TreeAutomaton.trs auto]→* t₂
 
-variable {auto : TreeAutomaton S Q} in section
-
-theorem step_extLT : (t₁ -[auto]→ t₂) → t₁.ExtLT t₂
-  | .child (.sig _) _ h =>
-    Term.ExtLT.child (step_extLT h)
-  | .subst _ mem => by
-    obtain ⟨_, _, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
-    simp only [Transition.toRewrite]
-    constructor
-
-variable {fn₁ : S ⨄ Q} {fn₂ : S}
+variable {auto : TreeAutomaton S Q} {fn₁ : S ⨄ Q} {fn₂ : S} in section
 
 theorem step_preserves_fn (h : fn₁ ° as -[auto]→ fn₂ ° bs) : fn₁ = fn₂ := by
   generalize hl : fn₁ ° as = lhs at h
   generalize hr : (Signature.Extended.sig fn₂) ° bs = rhs at h
-  induction h
+  cases h
   case subst mem =>
     obtain ⟨_, _, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
     simp [Transition.toRewrite] at hr
   case child => grind
 
-theorem steps_preserve_fn (h : fn₁ ° as -[auto]→* fn₂ ° bs) : fn₁ = fn₂ := by
+theorem step_child (h : fn ° as -[auto]→ fn ° bs) (i) : (as i -[auto]→ bs i) ∨ (as i = bs i) := by
+  generalize hl : fn ° as = lhs at h
+  generalize hr : fn ° bs = rhs at h
   cases h
-  case refl => rfl
-  case tail b hd tl =>
+  case subst mem =>
+    cases fn
+    case ext => exact i.elim0
+    case sig =>
+      obtain ⟨_, _, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
+      simp [Transition.toRewrite] at hr
+  case child j _ =>
+    injection hl with hl
+    subst hl
+    by_cases j = i <;> simp_all
+
+theorem steps_preserve_fn (h : fn₁ ° as -[auto]→* fn₂ ° bs) : fn₁ = fn₂ := by
+  generalize hl : fn₁ ° as = lhs at h
+  generalize hr : (Signature.Extended.sig fn₂) ° bs = rhs at h
+  induction h generalizing bs
+  case refl =>
+    injection hl ▸ hr with h _
+    exact h.symm
+  case tail b _ hd tl ih =>
+    subst hl hr
     cases b
     case var => contradiction
     case app =>
       obtain ⟨rfl⟩ := step_preserves_fn tl
-      exact steps_preserve_fn hd
-termination_by (Signature.Extended.sig fn₂) ° bs
-decreasing_by exact step_extLT tl
+      exact ih rfl
+
+theorem steps_child {as bs} (h : fn ° as -[auto]→* fn ° bs) (i) : as i -[auto]→* bs i := by
+  cases fn
+  case ext => exact i.elim0
+  case sig fn =>
+    generalize hl : (Signature.Extended.sig fn) ° as = lhs at h
+    generalize hr : (Signature.Extended.sig fn) ° bs = rhs at h
+    induction h generalizing bs
+    case refl =>
+      injection hl ▸ hr with _ h
+      exact h ▸ .refl
+    case tail b _ hd tl ih  =>
+      subst hl hr
+      cases b
+      case var => contradiction
+      case app =>
+        obtain ⟨rfl⟩ := step_preserves_fn tl
+        cases step_child tl i
+        case inl h => exact .tail (ih rfl) h
+        case inr h => exact h ▸ (ih rfl)
 
 end
 
@@ -64,7 +92,7 @@ def Accepts (auto : TreeAutomaton S Q) (q : Q) (t : Term S) : Prop :=
 
 -- If a state `q` accepts a term `fn ° as`, then the final step of that acceptance must have been
 -- based on a transition `⟨fn, qs, q⟩ ∈ auto.trans` where `qs` are states which accept `as`.
-theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q (fn ° as)) :
+theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° as) :
     ∃ qs : Args fn Q, ⟨fn, qs, q⟩ ∈ auto.trans ∧ ↑(fn ° as) -[auto]→* fn ° (qs ·) := by
   cases acc
   case tail lhs has h =>
@@ -84,10 +112,10 @@ theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q (fn ° as
       case ext i _ =>
         exact i.elim0
 
--- TODO: Fix the theorem statement.
-theorem accepts_child {auto : TreeAutomaton S Q} (acc : (fn ° as : Term S) -[auto]→* t) (i) :
-    ∃ qᵢ : Q, as i -[auto]→* qᵢ := by
-  sorry
+theorem Accepts.child {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° as) (i) :
+    ∃ qᵢ : Q, as i -[auto]→* qᵢ :=
+  have ⟨_, _, h⟩ := acc.final
+  ⟨_, steps_child h i⟩
 
 def Deterministic (auto : TreeAutomaton S Q) : Prop :=
   ∀ {t : Term S} {q₁ q₂ : Q}, (t -[auto]→* q₁) → (t -[auto]→* q₂) → q₁ = q₂

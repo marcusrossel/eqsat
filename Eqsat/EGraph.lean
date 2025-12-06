@@ -33,4 +33,4 @@ def pcr (graph : EGraph S Q) : PCR S where
   reach h i := by
     simp only [PER.support, and_self, Set.mem_setOf_eq] at *
     obtain ⟨_, h⟩ := h
-    exact TreeAutomaton.accepts_child h i
+    apply h.child
