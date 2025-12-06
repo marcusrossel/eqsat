@@ -34,23 +34,27 @@ theorem step_extLT : (t₁ -[auto]→ t₂) → t₁.ExtLT t₂
     simp only [Transition.toRewrite]
     constructor
 
+variable {fn₁ : S ⨄ Q} {fn₂ : S}
+
 theorem step_preserves_fn (h : fn₁ ° as -[auto]→ fn₂ ° bs) : fn₁ = fn₂ := by
   generalize hl : fn₁ ° as = lhs at h
-  generalize hr : fn₂ ° bs = rhs at h
+  generalize hr : (Signature.Extended.sig fn₂) ° bs = rhs at h
   induction h
-  case subst => sorry
-  case child => sorry
+  case subst mem =>
+    obtain ⟨_, _, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
+    simp [Transition.toRewrite] at hr
+  case child => grind
 
 theorem steps_preserve_fn (h : fn₁ ° as -[auto]→* fn₂ ° bs) : fn₁ = fn₂ := by
   cases h
   case refl => rfl
-  case tail t hd tl =>
-    cases t
+  case tail b hd tl =>
+    cases b
     case var => contradiction
     case app =>
       obtain ⟨rfl⟩ := step_preserves_fn tl
       exact steps_preserve_fn hd
-termination_by fn₂ ° bs
+termination_by (Signature.Extended.sig fn₂) ° bs
 decreasing_by exact step_extLT tl
 
 end
@@ -72,10 +76,15 @@ theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q (fn ° as
       obtain ⟨rfl⟩ := steps_preserve_fn has
       exists t.args
       simp_all
-    case child =>
-      obtain ⟨rfl⟩ := steps_preserve_fn has
-      simp at hr
+    case child fn' _ _ _ =>
+      cases fn'
+      case sig =>
+        obtain ⟨rfl⟩ := steps_preserve_fn has
+        simp at hr
+      case ext i _ =>
+        exact i.elim0
 
+-- TODO: Fix the theorem statement.
 theorem accepts_child {auto : TreeAutomaton S Q} (acc : (fn ° as : Term S) -[auto]→* t) (i) :
     ∃ qᵢ : Q, as i -[auto]→* qᵢ := by
   sorry
