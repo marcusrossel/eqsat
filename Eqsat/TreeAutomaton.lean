@@ -12,6 +12,11 @@ def Transition.toRewrite [Signature S] (trans : Transition S Q) : Rewrite (S ⨄
   lhs := trans.fn ° (trans.args ·)
   rhs := ↑trans.dst
 
+def Transition.map [Signature S] (trans : Transition S Q₁) (f : Q₁ → Q₂) : Transition S Q₂ where
+  fn   := trans.fn
+  args := (f <| trans.args ·)
+  dst  := f trans.dst
+
 structure _root_.TreeAutomaton (S Q) [Signature S] where
   trans : Set (Transition S Q)
   final : Set Q
@@ -122,3 +127,27 @@ def Deterministic (auto : TreeAutomaton S Q) : Prop :=
 
 def Reachable (auto : TreeAutomaton S Q) : Prop :=
   ∀ q : Q, ∃ t : Term S, t -[auto]→* q
+
+structure Hom (auto₁ : TreeAutomaton S Q₁) (auto₂ : TreeAutomaton S Q₂) where
+  hom   : Q₁ → Q₂
+  final : ∀ q ∈ auto₁.final, hom q ∈ auto₂.final
+  trans : ∀ t ∈ auto₁.trans, t.map hom ∈ auto₂.trans
+
+variable {auto₁ : TreeAutomaton S Q₁} {auto₂ : TreeAutomaton S Q₂}
+
+instance : CoeFun (Hom auto₁ auto₂) (fun _ => Q₁ → Q₂) where
+  coe := Hom.hom
+
+theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
+    Accepts auto₂ (hom q) t := by
+  induction t generalizing q
+  case var =>
+    contradiction
+  case app ih =>
+    have ⟨_, t₁, h⟩ := acc.final
+    have ht₂ := hom.trans _ t₁
+    have hrw₂ := Set.mem_image Transition.toRewrite _ _ |>.mpr ⟨_, ht₂, rfl⟩
+    have tl := TRS.Step.subst nofun hrw₂
+    simp only [Subst.apply_no_vars] at tl
+    apply Relation.ReflTransGen.tail ?_ tl
+    exact TRS.Steps.all_children (ih · <| steps_child h _)

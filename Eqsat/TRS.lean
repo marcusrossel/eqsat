@@ -28,13 +28,19 @@ abbrev TRS (S V : Type _) [Signature S] :=
 
 namespace TRS
 
-inductive Step {S V} [Signature S] (θ : TRS S V) : Term S → Term S → Prop where
+variable {S V} [Signature S]
+
+inductive Step (θ : TRS S V) : Term S → Term S → Prop where
   | subst (σ : Subst S V) (mem : rw ∈ θ) : Step θ rw.lhs[σ] rw.rhs[σ]
   | child (fn : S) (as : Term.Args fn) {i} (step : Step θ (as i) a) : Step θ (fn ° as) (fn ° as[i := a])
 
 notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
 
-abbrev Steps {S V} [Signature S] (θ : TRS S V) :=
+abbrev Steps (θ : TRS S V) :=
   Relation.ReflTransGen (· -[θ]→ ·)
 
 notation t₁ " -[" θ "]→* " t₂ => Steps θ t₁ t₂
+
+theorem Steps.all_children {θ : TRS S V} {as bs} (h : ∀ i, as i -[θ]→* bs i) :
+    fn ° as -[θ]→* fn ° bs := by
+  sorry
