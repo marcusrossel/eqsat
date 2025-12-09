@@ -36,11 +36,24 @@ inductive Step (θ : TRS S V) : Term S → Term S → Prop where
 
 notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
 
+theorem Step.subst' {θ : TRS S Empty} (mem : rw ∈ θ) : rw.lhs -[θ]→ rw.rhs := by
+  have s := TRS.Step.subst (V := Empty) nofun mem
+  simp only [Subst.apply_no_vars] at s
+  exact s
+
 abbrev Steps (θ : TRS S V) :=
   Relation.ReflTransGen (· -[θ]→ ·)
 
 notation t₁ " -[" θ "]→* " t₂ => Steps θ t₁ t₂
 
-theorem Steps.all_children {θ : TRS S V} {as bs} (h : ∀ i, as i -[θ]→* bs i) :
+-- TODO: Perhaps the reducing measure is the index.
+theorem Steps.children {θ : TRS S V} {as bs} (h : ∀ i, as i -[θ]→* bs i) :
     fn ° as -[θ]→* fn ° bs := by
-  sorry
+  cases h : Signature.arity fn
+  case zero => sorry
+  case succ =>
+    if has : as ⟨0, by grind⟩ = bs ⟨0, by grind⟩ then
+      sorry
+    else
+      have ⟨i, hi⟩ : ∃ i, as i ≠ bs i := sorry -- from has
+      sorry

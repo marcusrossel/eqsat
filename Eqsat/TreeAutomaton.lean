@@ -31,12 +31,22 @@ notation t₁ " -[" auto "]→* " t₂ => t₁ -[TreeAutomaton.trs auto]→* t�
 
 variable {auto : TreeAutomaton S Q} {fn₁ : S ⨄ Q} {fn₂ : S} in section
 
+theorem trans_to_mem_trs (h : t ∈ auto.trans) : t.toRewrite ∈ auto.trs :=
+  Set.mem_image Transition.toRewrite _ _ |>.mpr ⟨_, h, rfl⟩
+
+theorem mem_trs_to_trans (h : rw ∈ auto.trs) : ∃ t ∈ auto.trans, t.toRewrite = rw :=
+  Set.mem_image _ _ _ |>.mp h
+
+theorem step_of_transition {fn : S} {qs : Args fn Q} {q : Q} (mem : ⟨fn, qs, q⟩ ∈ auto.trans) :
+    fn ° (qs ·) -[auto]→ q :=
+  TRS.Step.subst' <| trans_to_mem_trs mem
+
 theorem step_preserves_fn (h : fn₁ ° as -[auto]→ fn₂ ° bs) : fn₁ = fn₂ := by
   generalize hl : fn₁ ° as = lhs at h
   generalize hr : (Signature.Extended.sig fn₂) ° bs = rhs at h
   cases h
   case subst mem =>
-    obtain ⟨_, _, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
+    obtain ⟨_, _, rfl⟩ := mem_trs_to_trans mem
     simp [Transition.toRewrite] at hr
   case child => grind
 
@@ -48,7 +58,7 @@ theorem step_child (h : fn ° as -[auto]→ fn ° bs) (i) : (as i -[auto]→ bs 
     cases fn
     case ext => exact i.elim0
     case sig =>
-      obtain ⟨_, _, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
+      obtain ⟨_, _, rfl⟩ := mem_trs_to_trans mem
       simp [Transition.toRewrite] at hr
   case child j _ =>
     injection hl with hl
@@ -104,7 +114,7 @@ theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° 
     generalize hr : (q : Term <| S ⨄ Q) = rhs at h
     cases h
     case subst mem =>
-      obtain ⟨t, ht, rfl⟩ := Set.mem_image _ _ _ |>.mp mem
+      obtain ⟨t, ht, rfl⟩ := mem_trs_to_trans mem
       simp only [Transition.toRewrite, Subst.apply_no_vars] at *
       obtain ⟨rfl⟩ := steps_preserve_fn has
       exists t.args
@@ -123,10 +133,10 @@ theorem Accepts.child {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° 
   ⟨_, steps_child h i⟩
 
 def Deterministic (auto : TreeAutomaton S Q) : Prop :=
-  ∀ {t : Term S} {q₁ q₂ : Q}, (t -[auto]→* q₁) → (t -[auto]→* q₂) → q₁ = q₂
+  ∀ {t : Term S} {q₁ q₂ : Q}, (Accepts auto q₁ t) → (Accepts auto q₂ t) → q₁ = q₂
 
 def Reachable (auto : TreeAutomaton S Q) : Prop :=
-  ∀ q : Q, ∃ t : Term S, t -[auto]→* q
+  ∀ q : Q, ∃ t : Term S, Accepts auto q t
 
 structure Hom (auto₁ : TreeAutomaton S Q₁) (auto₂ : TreeAutomaton S Q₂) where
   hom   : Q₁ → Q₂
@@ -138,6 +148,7 @@ variable {auto₁ : TreeAutomaton S Q₁} {auto₂ : TreeAutomaton S Q₂}
 instance : CoeFun (Hom auto₁ auto₂) (fun _ => Q₁ → Q₂) where
   coe := Hom.hom
 
+/-- Lemma 2 -/
 theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
     Accepts auto₂ (hom q) t := by
   induction t generalizing q
@@ -145,9 +156,5 @@ theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
     contradiction
   case app ih =>
     have ⟨_, t₁, h⟩ := acc.final
-    have ht₂ := hom.trans _ t₁
-    have hrw₂ := Set.mem_image Transition.toRewrite _ _ |>.mpr ⟨_, ht₂, rfl⟩
-    have tl := TRS.Step.subst nofun hrw₂
-    simp only [Subst.apply_no_vars] at tl
-    apply Relation.ReflTransGen.tail ?_ tl
-    exact TRS.Steps.all_children (ih · <| steps_child h _)
+    apply Relation.ReflTransGen.tail ?_ <| step_of_transition (hom.trans _ t₁)
+    exact TRS.Steps.children (ih · <| steps_child h _)
