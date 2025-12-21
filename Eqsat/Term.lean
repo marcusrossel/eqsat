@@ -36,10 +36,15 @@ abbrev Args [Signature S] (s : S) (α : Type _) :=
   Fin (arity s) → α
 
 @[simp]
-def Args.set [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) (a : α) : Args s α :=
+def Args.set [Signature S] {s : S} (as : Args s α) (i : Nat) (a : α) : Args s α :=
   fun j => if i = j then a else as j
 
 notation:(arg + 1) as "[" i " := " a "]" => Args.set as i a
+
+@[simp]
+theorem Args.set_self [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) :
+    as[i := as i] = as := by
+  grind [Args.set]
 
 instance [Signature S] {s : S} : Coe (Args s E) (Args s <| S ⨄ E) where
   coe as := (as ·)

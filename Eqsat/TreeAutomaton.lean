@@ -61,9 +61,9 @@ theorem step_child (h : fn ° as -[auto]→ fn ° bs) (i) : (as i -[auto]→ bs 
       obtain ⟨_, _, rfl⟩ := mem_trs_to_trans mem
       simp [Transition.toRewrite] at hr
   case child j _ =>
-    injection hl with hl
-    subst hl
-    by_cases j = i <;> simp_all
+    injection hr with hr hr'
+    subst hr hr'
+    grind [Args.set]
 
 theorem steps_preserve_fn (h : fn₁ ° as -[auto]→* fn₂ ° bs) : fn₁ = fn₂ := by
   generalize hl : fn₁ ° as = lhs at h
@@ -156,5 +156,5 @@ theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
     contradiction
   case app ih =>
     have ⟨_, t₁, h⟩ := acc.final
-    apply Relation.ReflTransGen.tail ?_ <| step_of_transition (hom.trans _ t₁)
+    apply TRS.Steps.tail ?_ <| step_of_transition (hom.trans _ t₁)
     exact TRS.Steps.children (ih · <| steps_child h _)

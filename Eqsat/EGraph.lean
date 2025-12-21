@@ -32,15 +32,14 @@ def pcr (graph : EGraph S Q) : PCR S where
     simp_all
   congr h mem := by
     rename_i fn as bs
-    simp_all [PER.support]
+    simp only [PER.support, and_self] at mem
     obtain ⟨c, hc⟩ := mem
     refine ⟨c, hc, ?_⟩
     have ⟨qs, hq₁, hq₂⟩ := hc.final
-    apply Relation.ReflTransGen.tail ?_ (TreeAutomaton.step_of_transition hq₁)
-    · refine TRS.Steps.children (fun i => ?_)
-      have ⟨_, hc₁, hc₂⟩ := h i
-      obtain ⟨rfl⟩ := graph.det hc₁ <| TreeAutomaton.steps_child hq₂ i
-      exact hc₂
+    apply TRS.Steps.tail (TRS.Steps.children fun i => ?_) (TreeAutomaton.step_of_transition hq₁)
+    have ⟨_, hc₁, hc₂⟩ := h i
+    obtain ⟨rfl⟩ := graph.det hc₁ <| TreeAutomaton.steps_child hq₂ i
+    exact hc₂
   reach h i := by
     simp only [PER.support, and_self, Set.mem_setOf_eq] at *
     obtain ⟨_, h⟩ := h

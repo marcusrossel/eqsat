@@ -37,23 +37,78 @@ inductive Step (θ : TRS S V) : Term S → Term S → Prop where
 notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
 
 theorem Step.subst' {θ : TRS S Empty} (mem : rw ∈ θ) : rw.lhs -[θ]→ rw.rhs := by
-  have s := TRS.Step.subst (V := Empty) nofun mem
+  have s := Step.subst nofun mem
   simp only [Subst.apply_no_vars] at s
   exact s
 
 abbrev Steps (θ : TRS S V) :=
   Relation.ReflTransGen (· -[θ]→ ·)
 
+namespace Steps
+
 notation t₁ " -[" θ "]→* " t₂ => Steps θ t₁ t₂
 
--- TODO: Perhaps the reducing measure is the index.
-theorem Steps.children {θ : TRS S V} {as bs} (h : ∀ i, as i -[θ]→* bs i) :
-    fn ° as -[θ]→* fn ° bs := by
-  cases h : Signature.arity fn
-  case zero => sorry
-  case succ =>
-    if has : as ⟨0, by grind⟩ = bs ⟨0, by grind⟩ then
-      sorry
-    else
-      have ⟨i, hi⟩ : ∃ i, as i ≠ bs i := sorry -- from has
-      sorry
+theorem refl {θ : TRS S V} : t -[θ]→* t :=
+  Relation.ReflTransGen.refl
+
+theorem tail {θ : TRS S V} (head : t₁ -[θ]→* t₂) (tail : t₂ -[θ]→ t₃) : t₁ -[θ]→* t₃ :=
+  Relation.ReflTransGen.tail head tail
+
+theorem trans {θ : TRS S V} (head : t₁ -[θ]→* t₂) (tail : t₂ -[θ]→* t₃) : t₁ -[θ]→* t₃ :=
+  Relation.ReflTransGen.trans head tail
+
+theorem child {θ : TRS S V} {as} {i : Fin <| Signature.arity fn} (h : as i -[θ]→* b) :
+    fn ° as -[θ]→* fn ° as[i := b] := by
+  induction h
+  case refl => simp [Steps.refl]
+  case tail z b _ h ih =>
+    have hz : z = as[i := z] i := by simp
+    have hb : b = as[i := b] i := by simp
+    rw [hb, hz] at h
+    have s := Step.child _ _ h
+    have hbz : as[i := z][i := b] = as[i := b] := by grind [Args.set]
+    simp [hbz] at s
+    exact .tail ih s
+
+-- Auxiliary definitions for the proof of `TRS.Steps.children` below.
+section Auxiliary
+
+private def ArgSubst (S) [Signature S] (n : Nat) :=
+  Fin n → Term S
+
+namespace ArgSubst
+
+private def drop (σ : ArgSubst S <| n + 1) : ArgSubst S n :=
+  fun i => σ ⟨i, by simp +arith⟩
+
+private def apply {fn : S} (σ : ArgSubst S n) (as : Term.Args fn) : Term.Args fn :=
+  fun i => if h : i < n then σ ⟨i, h⟩ else as i
+
+private theorem apply_all (σ : ArgSubst S <| Signature.arity fn) (as) : σ.apply as = σ :=
+  funext <| by simp [apply]
+
+private theorem drop_apply_set {fn : S} (σ : ArgSubst S <| n + 1) (as : Term.Args fn) :
+    (σ.drop.apply as)[n := σ ⟨n, Nat.lt_add_one _⟩] = σ.apply as := by
+  grind [apply, drop, Args.set]
+
+private theorem drop_apply_get (n : Fin _) (σ : ArgSubst S <| n + 1) (as : Term.Args fn) :
+    (σ.drop.apply as) n = as n := by
+  simp [apply]
+
+end ArgSubst
+
+private theorem children' {θ : TRS S V} {as} (σ : ArgSubst S n) (hn : n ≤ Signature.arity fn)
+    (h : ∀ i : Fin n, as ⟨i, by grind⟩ -[θ]→* σ i) : fn ° as -[θ]→* fn ° (σ.apply as) := by
+  induction n
+  case zero => exact .refl
+  case succ m ih =>
+    apply Steps.trans <| ih σ.drop (by grind) (h ⟨·, by grind⟩)
+    rw [← ArgSubst.drop_apply_set]
+    exact child <| ArgSubst.drop_apply_get ⟨m, by grind⟩ σ as ▸ h ⟨m, by simp⟩
+
+end Auxiliary
+
+theorem children {θ : TRS S V} {as bs} (h : ∀ i, as i -[θ]→* bs i) : fn ° as -[θ]→* fn ° bs :=
+  ArgSubst.apply_all bs as ▸ children' bs (Nat.le_refl _) (h ⟨·, by grind⟩)
+
+end TRS.Steps
