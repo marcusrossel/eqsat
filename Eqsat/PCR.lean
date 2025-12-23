@@ -35,5 +35,5 @@ structure PCR (S) [Signature S] extends per : PER (Term S) where
   congr : per.Congruent
   reach : per.Reachable
 
-def PCR.classes [Signature S] (pcr : PCR S) : Type :=
+def PCR.Classes [Signature S] (pcr : PCR S) : Type :=
   Quotient <| PER.supportSetoid pcr.per

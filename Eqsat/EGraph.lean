@@ -52,17 +52,53 @@ namespace PCR
 
 variable [Signature S] {graph : EGraph S Q}
 
-def egraph (pcr : PCR S) : EGraph S pcr.classes where
-  trans :=
-    { ⟨fn, qs, dst⟩ |
-      ∃ (as : Term.Args fn) (mem₁ : fn ° as ∈ pcr.support) (mem₂ : ∀ i, as i ∈ pcr.support),
-      dst = Quotient.mk' ⟨fn ° as, mem₁⟩ ∧
-      qs = fun i => Quotient.mk' ⟨as i, mem₂ i⟩
-    }
-  final    := ∅
+inductive transitions (pcr : PCR S) : Set (TreeAutomaton.Transition S pcr.Classes)
+  | intro (mem₁ : fn ° as ∈ pcr.support) (mem₂ : ∀ i, as i ∈ pcr.support) :
+    transitions pcr ⟨fn, fun i => ⟦⟨as i, mem₂ i⟩⟧, ⟦⟨fn ° as, mem₁⟩⟧⟩
+
+def automaton (pcr : PCR S) : TreeAutomaton S pcr.Classes where
+  trans := pcr.transitions
+  final := ∅
+
+theorem automaton_single_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr.Classes}
+    (h₁ : t -[pcr.automaton]→ q₁) (h₂ : t -[pcr.automaton]→ q₂) : q₁ = q₂ := by
+  sorry
+
+theorem automaton_deterministic (pcr : PCR S) : pcr.automaton.Deterministic := by
+  rw [TreeAutomaton.Deterministic]
+  intro t q₁ q₂ hq₁ hq₂
+  rw [TreeAutomaton.Accepts] at hq₁ hq₂
+  generalize hl : t.extend = lhs at hq₁ hq₂
+  generalize hr₁ : (q₁ : Term <| S ⨄ pcr.Classes) = rhs₁ at hq₁
+  generalize hr₂ : (q₂ : Term <| S ⨄ pcr.Classes) = rhs₂ at hq₂
+  suffices rhs₁ = rhs₂ by simp_all [← hr₂]
+  induction hq₁ generalizing rhs₂ <;> cases hq₂
+  case refl.refl => rfl
+  case refl.tail =>
+    sorry -- contra as hl and hr₁ equate a term with a state
+  case tail.refl =>
+    sorry -- contra as hl and hr₂ equate a term with a state
+  case tail.tail b₁ c₁ hd₁ tl₁ ih b₂ hd₂ tl₂ =>
+    -- by children lemma we get transitions from each child of lhs
+    -- (aka t, which has to be of the form fn ° as) to a state
+    --
+    -- then apply IH for each child
+    --
+    -- then we get we only have to show that the final steps
+    -- are deterministic (perhaps factor that out into a lemma).
+    -- first of all, establish that it has to be a subst-step, as a children step can't have a
+    -- state as dst.
+    -- then use automaton_single_deterministic
+    sorry
+
+theorem automaton_reachable (pcr : PCR S) : pcr.automaton.Reachable := by
+  sorry
+
+def egraph (pcr : PCR S) : EGraph S pcr.Classes where
+  auto     := pcr.automaton
   no_final := rfl
-  det      := sorry
-  reach    := sorry
+  det      := pcr.automaton_deterministic
+  reach    := pcr.automaton_reachable
 
 theorem egraph_correct (pcr : PCR S) : pcr.egraph.pcr = pcr := by
   ext t₁ t₂

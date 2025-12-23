@@ -66,9 +66,8 @@ theorem child {θ : TRS S V} {as} {i : Fin <| Signature.arity fn} (h : as i -[θ
     have hb : b = as[i := b] i := by simp
     rw [hb, hz] at h
     have s := Step.child _ _ h
-    have hbz : as[i := z][i := b] = as[i := b] := by grind [Args.set]
-    simp [hbz] at s
-    exact .tail ih s
+    have : as[i := z][i := b] = as[i := b] := by grind [Args.set]
+    grind [.tail]
 
 -- Auxiliary definitions for the proof of `TRS.Steps.children` below.
 section Auxiliary
