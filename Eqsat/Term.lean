@@ -19,8 +19,20 @@ instance [Signature S] : Coe S (S ⨄ E) where
 instance [Signature S] : Coe E (S ⨄ E) where
   coe := .ext
 
+namespace Extended
+
+@[app_unexpander Extended.sig]
+def sigUnexpander : Lean.PrettyPrinter.Unexpander
+  | `($_ $s) => `(↑$s)
+  | s        => return s
+
+@[app_unexpander Extended.ext]
+def extUnexpander : Lean.PrettyPrinter.Unexpander
+  | `($_ $s) => `(↑$s)
+  | s        => return s
+
 @[simp]
-nonrec def Extended.arity {S E} [Signature S] : S ⨄ E → Nat
+nonrec def arity {S E} [Signature S] : S ⨄ E → Nat
   | .sig s => arity s
   | .ext _ => 0
 
@@ -28,7 +40,7 @@ nonrec def Extended.arity {S E} [Signature S] : S ⨄ E → Nat
 instance [Signature S] : Signature (S ⨄ E) where
   arity := Signature.Extended.arity
 
-end Signature
+end Signature.Extended
 
 open Signature
 
@@ -79,5 +91,18 @@ abbrev extend : Term S → Term (S ⨄ E)
 instance : Coe (Term S) (Term <| S ⨄ E) where
   coe := extend
 
+@[app_unexpander Term.extend]
+def extendUnexpander : Lean.PrettyPrinter.Unexpander
+  | `($_ $t) => `(↑$t)
+  | e        => return e
+
 instance : Coe E (Term <| S ⨄ E) where
   coe e := e ° nofun
+
+@[cases_eliminator]
+def casesOn
+    {motive : Term S → Sort _} (t : Term S)
+    (app : (fn : S) → (args : Fin (arity fn) → Term S) → motive fn ° args) : motive t :=
+  match t with
+  | .var v     => v.elim
+  | .app fn as => app fn as

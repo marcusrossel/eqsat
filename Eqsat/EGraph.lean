@@ -62,7 +62,29 @@ def automaton (pcr : PCR S) : TreeAutomaton S pcr.Classes where
 
 theorem automaton_single_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr.Classes}
     (h₁ : t -[pcr.automaton]→ q₁) (h₂ : t -[pcr.automaton]→ q₂) : q₁ = q₂ := by
-  sorry
+  cases t
+  case app fn as =>
+    obtain ⟨_, ⟨mem₁₁, mem₁₂⟩, h₁⟩ := TreeAutomaton.mem_trs_to_trans h₁.rw_of_ext
+    rename_i fn₁ as₁
+    obtain ⟨_, ⟨mem₂₁, mem₂₂⟩, h₂⟩ := TreeAutomaton.mem_trs_to_trans h₂.rw_of_ext
+    rename_i fn₂ as₂
+    simp only [Signature.Extended.inst.eq_1, TreeAutomaton.Transition.toRewrite,
+      Signature.Extended.arity, Rewrite.mk.injEq, Pattern.app.injEq, Signature.Extended.ext.injEq,
+      heq_eq_eq] at h₁ h₂
+    obtain ⟨⟨rfl, rfl⟩, rfl, _⟩ := h₁
+    clear h₁
+    obtain ⟨⟨⟨rfl, rfl⟩, h⟩, rfl, _⟩ := h₂
+    clear h₂
+    suffices h : as₁ = as₂ by simp only [h]
+    ext i
+    replace h := congrFun (eq_of_heq h) i
+    injection h with h _
+    injection h with h
+    have := Quotient.eq.mp h
+    simp [PER.supportSetoid] at this
+    -- TODO: Can we get real equality or only equiv?
+    --       Or do we have to equate/equiv things earlier, so that it suffices to show equiv further down?
+    sorry
 
 theorem automaton_deterministic (pcr : PCR S) : pcr.automaton.Deterministic := by
   rw [TreeAutomaton.Deterministic]
