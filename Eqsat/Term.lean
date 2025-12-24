@@ -100,10 +100,6 @@ def extendUnexpander : Lean.PrettyPrinter.Unexpander
 instance : Coe E (Term <| S ⨄ E) where
   coe e := e ° nofun
 
-@[simp]
-theorem ext_vars (e : E) : (e : Term <| S ⨄ E).vars = ∅ :=
-  sorry
-
 @[cases_eliminator]
 def casesOn
     {motive : Term S → Sort _} (t : Term S)

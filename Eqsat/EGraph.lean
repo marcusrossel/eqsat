@@ -61,12 +61,12 @@ def automaton (pcr : PCR S) : TreeAutomaton S pcr.Classes where
   final := ∅
 
 open TreeAutomaton in
-theorem automaton_single_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr.Classes}
+theorem automaton_step_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr.Classes}
     (h₁ : t -[pcr.automaton]→ q₁) (h₂ : t -[pcr.automaton]→ q₂) : q₁ = q₂ := by
   cases t
   case app fn as =>
-    obtain ⟨_, ⟨mem₁₁, mem₁₂⟩, h₁⟩ := mem_trs_to_trans h₁.rw_of_ext
-    obtain ⟨_, ⟨mem₂₁, mem₂₂⟩, h₂⟩ := mem_trs_to_trans h₂.rw_of_ext
+    obtain ⟨_, ⟨mem₁₁, mem₁₂⟩, h₁⟩ := mem_trs_to_trans h₁.rw_of_ext.choose_spec
+    obtain ⟨_, ⟨mem₂₁, mem₂₂⟩, h₂⟩ := mem_trs_to_trans h₂.rw_of_ext.choose_spec
     simp only [Transition.toRewrite, Rewrite.mk.injEq, Pattern.app.injEq,
       Signature.Extended.ext.injEq] at h₁ h₂
     obtain ⟨⟨rfl, rfl⟩, rfl, _⟩ := h₁
@@ -101,7 +101,7 @@ theorem automaton_deterministic (pcr : PCR S) : pcr.automaton.Deterministic := b
     -- are deterministic (perhaps factor that out into a lemma).
     -- first of all, establish that it has to be a subst-step, as a children step can't have a
     -- state as dst.
-    -- then use automaton_single_deterministic
+    -- then use automaton_step_deterministic
     sorry
 
 theorem automaton_reachable (pcr : PCR S) : pcr.automaton.Reachable := by

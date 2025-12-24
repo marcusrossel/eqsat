@@ -45,8 +45,12 @@ theorem Step.subst' {θ : TRS S Empty} (mem : rw ∈ θ) : rw.lhs -[θ]→ rw.rh
 -- A step leading to a term `.ext fn₂` (this could be generalized to any application of arity 0)
 -- must be a `Step.subst`. Note, we also assume `V := Empty` here, which could be generalized.
 theorem Step.rw_of_ext {fn₁ : S ⨄ E} {as} {fn₂ : E} (h : fn₁ ° as -[θ]→ fn₂) :
-    ⟨fn₁ ° as, fn₂, by simp [↓Term.ext_vars]⟩ ∈ θ := by
-  sorry
+    ∃ sub, ⟨fn₁ ° as, fn₂, sub⟩ ∈ θ := by
+  generalize fn₁ ° as = lhs at h
+  generalize hr : (fn₂ : Term <| S ⨄ E) = rhs at h
+  cases h
+  case subst rw _ _ => simp_all [rw.sub]
+  case child i _    => exact Pattern.app.inj hr |>.left ▸ i |>.elim0
 
 abbrev Steps (θ : TRS S V) :=
   Relation.ReflTransGen (· -[θ]→ ·)
