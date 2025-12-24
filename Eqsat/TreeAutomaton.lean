@@ -4,17 +4,17 @@ import Eqsat.TRS
 namespace TreeAutomaton
 
 structure Transition (S Q) [Signature S] where
-  fn   : S
-  args : Args fn Q
+  sym  : S
+  srcs : Args sym Q
   dst  : Q
 
 def Transition.toRewrite [Signature S] (trans : Transition S Q) : Rewrite (S ⨄ Q) Empty where
-  lhs := trans.fn ° (trans.args ·)
+  lhs := trans.sym ° (trans.srcs ·)
   rhs := ↑trans.dst
 
 def Transition.map [Signature S] (trans : Transition S Q₁) (f : Q₁ → Q₂) : Transition S Q₂ where
-  fn   := trans.fn
-  args := (f <| trans.args ·)
+  sym  := trans.sym
+  srcs := (f <| trans.srcs ·)
   dst  := f trans.dst
 
 structure _root_.TreeAutomaton (S Q) [Signature S] where
@@ -117,7 +117,7 @@ theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° 
       obtain ⟨t, ht, rfl⟩ := mem_trs_to_trans mem
       simp only [Transition.toRewrite, Subst.apply_no_vars] at *
       obtain ⟨rfl⟩ := steps_preserve_fn has
-      exists t.args
+      exists t.srcs
       simp_all
     case child fn' _ _ _ =>
       cases fn'

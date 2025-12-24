@@ -1,4 +1,5 @@
 import Mathlib.Logic.Relation
+import Mathlib.Data.Set.Basic
 import Eqsat.Term
 
 def Subst (S V : Type _) [Signature S] :=
@@ -41,21 +42,11 @@ theorem Step.subst' {θ : TRS S Empty} (mem : rw ∈ θ) : rw.lhs -[θ]→ rw.rh
   simp only [Subst.apply_no_vars] at s
   exact s
 
--- A step leading to a term `.ext fn₂` (could be generalized to any application of arity 0) must be
--- a `Step.subst`. Note, we also assume `V := Empty` here, which could be generalized.
+-- A step leading to a term `.ext fn₂` (this could be generalized to any application of arity 0)
+-- must be a `Step.subst`. Note, we also assume `V := Empty` here, which could be generalized.
 theorem Step.rw_of_ext {fn₁ : S ⨄ E} {as} {fn₂ : E} (h : fn₁ ° as -[θ]→ fn₂) :
-    ⟨fn₁ ° as, fn₂, sorry⟩ ∈ θ := by
+    ⟨fn₁ ° as, fn₂, by simp [↓Term.ext_vars]⟩ ∈ θ := by
   sorry
-
-/- TODO:
-def Step.casesOn'
-    {motive : (fn₁ : S) → (as₁ : Term.Args fn₁) → (fn₂ : S) → (as₂ : Term.Args fn₂) → (fn₁ ° as₁ -[θ]→ fn₂ ° as₂) → Prop}
-    (h : fn₁ ° as₁ -[θ]→ fn₂ ° as₂)
-    (subst : ∀ {rw : Rewrite S Empty} (mem : rw ∈ θ), motive rw.lhs rw.rhs (.subst σ mem))
-    (child : ∀ {a : Term S} (fn : S) (as : Term.Args fn) {i : Fin (Signature.arity fn)} (step : as i -[θ]→ a), motive (fn ° as) fn ° as[↑i := a] (.child fn as step)) :
-    motive fn₁ as₁ fn₂ as₂ h :=
-  sorry
--/
 
 abbrev Steps (θ : TRS S V) :=
   Relation.ReflTransGen (· -[θ]→ ·)

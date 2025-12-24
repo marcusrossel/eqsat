@@ -1,4 +1,5 @@
 import Mathlib.Order.SetNotation
+import Lean
 
 -- NOTE: According to Section 2.1 a signature needs to be finite, but in Section 2.2 we construct
 -- the signature Σ ∪ Q which is infinite. Thus, we drop the requirement of finiteness here.
@@ -98,6 +99,10 @@ def extendUnexpander : Lean.PrettyPrinter.Unexpander
 
 instance : Coe E (Term <| S ⨄ E) where
   coe e := e ° nofun
+
+@[simp]
+theorem ext_vars (e : E) : (e : Term <| S ⨄ E).vars = ∅ :=
+  sorry
 
 @[cases_eliminator]
 def casesOn
