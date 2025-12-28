@@ -52,24 +52,61 @@ theorem Step.rw_of_ext {fn₁ : S ⨄ E} {as} {fn₂ : E} (h : fn₁ ° as -[θ]
   case subst rw _ _ => simp_all [rw.sub]
   case child i _    => exact Pattern.app.inj hr |>.left ▸ i |>.elim0
 
-abbrev Steps (θ : TRS S V) :=
-  Relation.ReflTransGen (· -[θ]→ ·)
+inductive Steps (θ : TRS S V) : Term S → Term S → Type _ where
+  | refl (t) : Steps θ t t
+  | tail : Steps θ t₁ t₂ → (t₂ -[θ]→ t₃) → Steps θ t₁ t₃
+
+abbrev HasSteps (θ : TRS S V) (t₁ t₂ : Term S) : Prop :=
+  Nonempty (Steps θ t₁ t₂)
+
+namespace HasSteps
+
+notation t₁ " -[" θ "]→* " t₂ => HasSteps θ t₁ t₂
+
+theorem refl (t : Term S) : t -[θ]→* t :=
+  ⟨.refl t⟩
+
+theorem tail {t₁ : Term S} (hd : t₁ -[θ]→* t₂) (tl : t₂ -[θ]→ t₃) : t₁ -[θ]→* t₃ :=
+  hd.elim (⟨.tail · tl⟩)
+
+@[cases_eliminator]
+theorem casesOn
+    {θ : TRS S V} {t₁ : Term S} {motive : (t' : Term S) → (t₁ -[θ]→* t') → Prop} {t₂ : Term S}
+    (h : t₁ -[θ]→* t₂) (refl : motive t₁ <| refl t₁)
+    (tail : {t₁' t₂' : Term S} → (hd : t₁ -[θ]→* t₁') → (tl : t₁' -[θ]→ t₂') → motive t₂' (tail hd tl)) :
+    motive t₂ h := by
+  have ⟨h⟩ := h
+  cases h
+  case refl       => exact refl
+  case tail hd tl => exact tail ⟨hd⟩ tl
+
+@[induction_eliminator]
+theorem recOn
+    {θ : TRS S V} {t₁ : Term S} {motive : (t' : Term S) → (t₁ -[θ]→* t') → Prop} {t₂ : Term S}
+    (h : t₁ -[θ]→* t₂) (refl : motive t₁ <| refl t₁)
+    (tail : {t₁' t₂' : Term S} → (hd : t₁ -[θ]→* t₁') → (tl : t₁' -[θ]→ t₂') → motive t₁' hd → motive t₂' (tail hd tl)) :
+    motive t₂ h := by
+  have ⟨h⟩ := h
+  induction h
+  case refl          => exact refl
+  case tail hd tl ih => exact tail ⟨hd⟩ tl (ih ⟨hd⟩)
+
+end HasSteps
 
 namespace Steps
 
-notation t₁ " -[" θ "]→* " t₂ => Steps θ t₁ t₂
+def length {θ : TRS S V} : (Steps θ t₁ t₂) → Nat
+  | .refl _     => 0
+  | .tail hd tl => length hd + 1
 
-theorem refl {θ : TRS S V} : t -[θ]→* t :=
-  Relation.ReflTransGen.refl
-
-theorem tail {θ : TRS S V} (head : t₁ -[θ]→* t₂) (tail : t₂ -[θ]→ t₃) : t₁ -[θ]→* t₃ :=
-  Relation.ReflTransGen.tail head tail
-
-theorem trans {θ : TRS S V} (head : t₁ -[θ]→* t₂) (tail : t₂ -[θ]→* t₃) : t₁ -[θ]→* t₃ :=
-  Relation.ReflTransGen.trans head tail
+def trans {θ : TRS S V} : (Steps θ t₁ t₂) → (Steps θ t₂ t₃) → Steps θ t₁ t₃
+  | s, .refl _ => s
+  | s, .tail hd tl => .tail (trans s hd) tl
 
 theorem child {θ : TRS S V} {as} {i : Fin <| Signature.arity fn} (h : as i -[θ]→* b) :
     fn ° as -[θ]→* fn ° as[i := b] := by
+  sorry
+  /-
   induction h
   case refl => simp [Steps.refl]
   case tail z b _ h ih =>
@@ -79,6 +116,7 @@ theorem child {θ : TRS S V} {as} {i : Fin <| Signature.arity fn} (h : as i -[θ
     have s := Step.child _ _ h
     have : as[i := z][i := b] = as[i := b] := by grind [Args.set]
     grind [.tail]
+  -/
 
 -- Auxiliary definitions for the proof of `TRS.Steps.children` below.
 section Auxiliary
@@ -109,12 +147,15 @@ end ArgSubst
 
 private theorem children' {θ : TRS S V} {as} (σ : ArgSubst S n) (hn : n ≤ Signature.arity fn)
     (h : ∀ i : Fin n, as ⟨i, by grind⟩ -[θ]→* σ i) : fn ° as -[θ]→* fn ° (σ.apply as) := by
+  sorry
+  /-
   induction n
   case zero => exact .refl
   case succ m ih =>
     apply trans <| ih σ.drop (by grind) (h ⟨·, by grind⟩)
     rw [← ArgSubst.drop_apply_set]
     exact child <| ArgSubst.drop_apply_get ⟨m, by grind⟩ σ as ▸ h ⟨m, by simp⟩
+  -/
 
 end Auxiliary
 

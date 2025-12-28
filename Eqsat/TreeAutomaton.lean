@@ -75,7 +75,6 @@ theorem steps_preserve_fn (h : fn₁ ° as -[auto]→* fn₂ ° bs) : fn₁ = fn
   case tail b _ hd tl ih =>
     subst hl hr
     cases b
-    case var => contradiction
     case app =>
       obtain ⟨rfl⟩ := step_preserves_fn tl
       exact ih rfl
@@ -89,11 +88,10 @@ theorem steps_child {as bs} (h : fn ° as -[auto]→* fn ° bs) (i) : as i -[aut
     induction h generalizing bs
     case refl =>
       injection hl ▸ hr with _ h
-      exact h ▸ .refl
+      exact h ▸ .refl _
     case tail b _ hd tl ih  =>
       subst hl hr
       cases b
-      case var => contradiction
       case app =>
         obtain ⟨rfl⟩ := step_preserves_fn tl
         cases step_child tl i
@@ -104,6 +102,17 @@ end
 
 def Accepts (auto : TreeAutomaton S Q) (q : Q) (t : Term S) : Prop :=
   t -[auto]→* q
+
+@[cases_eliminator]
+theorem Accepts.casesOn
+    {auto : TreeAutomaton S Q} {t : Term S} {motive : (q : Q) → (Accepts auto q t) → Prop} {q : Q}
+    (h : Accepts auto q t)
+    (tail : {t' : Term <| S ⨄ Q} → {q' : Q} → (hd : t -[auto]→* t') → (tl : t' -[auto]→ q') →
+      motive q' (hd.elim (⟨·.tail tl⟩))) :
+    motive q h := by
+  have ⟨h⟩ := h
+  cases t; cases h
+  exact tail ⟨‹_›⟩ ‹_›
 
 -- If a state `q` accepts a term `fn ° as`, then the final step of that acceptance must have been
 -- based on a transition `⟨fn, qs, q⟩ ∈ auto.trans` where `qs` are states which accept `as`.
@@ -154,5 +163,5 @@ theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
   induction t generalizing q
   case app ih =>
     have ⟨_, t₁, h⟩ := acc.final
-    apply TRS.Steps.tail ?_ <| step_of_transition (hom.trans _ t₁)
+    apply TRS.HasSteps.tail ?_ <| step_of_transition (hom.trans _ t₁)
     exact TRS.Steps.children (ih · <| steps_child h _)

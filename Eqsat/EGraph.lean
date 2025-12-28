@@ -30,7 +30,7 @@ def pcr (graph : EGraph S Q) : PCR S where
     exists c
     have := graph.det h₁ h₂
     simp_all
-  congr h mem := open TreeAutomaton TRS.Steps in by
+  congr h mem := open TreeAutomaton TRS Steps HasSteps in by
     rename_i fn as bs
     simp only [PER.support, and_self] at mem
     obtain ⟨c, hc⟩ := mem
@@ -100,7 +100,7 @@ theorem automaton_reachable (pcr : PCR S) : pcr.automaton.Reachable := by
   refine Quotient.ind fun ⟨t, h⟩ => ⟨t, ?_⟩
   induction t
   case app ih =>
-    exact .tail (.children fun i => ih i <| pcr.reach h i) (step_of_transition <| .intro ..)
+    exact .tail (TRS.Steps.children fun i => ih i <| pcr.reach h i) (step_of_transition <| .intro ..)
 
 end
 
