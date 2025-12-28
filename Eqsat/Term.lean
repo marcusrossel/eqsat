@@ -1,4 +1,5 @@
 import Mathlib.Order.SetNotation
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Lean
 
 -- NOTE: According to Section 2.1 a signature needs to be finite, but in Section 2.2 we construct
@@ -66,15 +67,28 @@ inductive Pattern (S V) [Signature S] where
   | var (v : V)
   | app (fn : S) (args : Fin (arity fn) → Pattern S V)
 
-instance [Signature S] : Coe V (Pattern S V) where
+namespace Pattern
+
+variable [Signature S]
+
+instance : Coe V (Pattern S V) where
   coe := .var
 
 infixl:arg " ° " => Pattern.app
 
+def size [SizeOf S] [Signature S] [SizeOf V] : Pattern S V → Nat
+  | .var v     => sizeOf v
+  | .app fn as => 1 + sizeOf fn + ∑ i, size (as i)
+
+instance [SizeOf S] [SizeOf V] : SizeOf (Pattern S V) where
+  sizeOf := Pattern.size
+
 @[simp]
-def Pattern.vars [Signature S] : Pattern S V → Set V
+def vars : Pattern S V → Set V
   | (v : V)  => {v}
   | _ ° args => ⋃ i, vars (args i)
+
+end Pattern
 
 abbrev Term (S) [Signature S] :=
   Pattern S Empty
@@ -107,3 +121,20 @@ def casesOn
   match t with
   | .var v     => v.elim
   | .app fn as => app fn as
+
+@[induction_eliminator]
+def recOn
+    {motive : Term S → Sort _} (t : Term S)
+    (app : ∀ fn args, (∀ i, motive <| args i) → motive fn ° args) : motive t :=
+  match t with
+  | .var v => v.elim
+  | .app fn as =>
+    app fn as fun i =>
+      match _ : as i with
+      | .app fnᵢ asᵢ => recOn (fnᵢ ° asᵢ) app
+termination_by t.size
+decreasing_by
+  have := Finset.single_le_sum (a := i) (f := Pattern.size ∘ as) (by simp) (Finset.mem_univ _)
+  grind [Pattern.size]
+
+end Term

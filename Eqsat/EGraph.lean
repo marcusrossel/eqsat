@@ -60,7 +60,8 @@ def automaton (pcr : PCR S) : TreeAutomaton S pcr.Classes where
   trans := pcr.transitions
   final := ∅
 
-open TreeAutomaton in
+open TreeAutomaton in section
+
 theorem automaton_step_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr.Classes}
     (h₁ : t -[pcr.automaton]→ q₁) (h₂ : t -[pcr.automaton]→ q₂) : q₁ = q₂ := by
   cases t
@@ -77,7 +78,6 @@ theorem automaton_step_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr
       simp_all
     exact Quotient.sound <| @pcr.congr fn as₁ as₂ (Quotient.eq.mp <| h ·) mem₁₁
 
-open TreeAutomaton in
 theorem automaton_deterministic
     (pcr : PCR S) {q₁ q₂} (hq₁ : pcr.automaton.Accepts q₁ t) (hq₂ : pcr.automaton.Accepts q₂ t) :
     q₁ = q₂ := by
@@ -96,8 +96,24 @@ decreasing_by
   -- (1) prove that the Steps coming out of Accepts.final are smaller than what went in
   -- (2) prove that the Steps coming out of steps_child are smaller than what went in
 
+-- TODO: It seems that in both cases, the culprit is a difference in the args to the state (ie the nofun)
 theorem automaton_reachable (pcr : PCR S) : pcr.automaton.Reachable := by
-  sorry
+  refine Quotient.ind fun ⟨t, h⟩ => ⟨t, ?_⟩
+  induction t
+  case app fn as ih =>
+    replace ih i := ih i (pcr.reach h i)
+    unfold Accepts
+    let qs i := ↑(.ext ⟦⟨as i, pcr.reach h i⟩⟧ : S ⨄ pcr.Classes) ° (fun | ⟨_, _⟩ => by contradiction : Term.Args _)
+    refine TRS.Steps.tail (t₂ := ↑fn ° qs) ?head ?tail
+    case head =>
+      refine TRS.Steps.children fun i => ?_
+      unfold Accepts at ih
+      sorry -- exact ih i
+    case tail =>
+      have h : ⟨fn, fun i => ⟦⟨as i, pcr.reach h i⟩⟧, ⟦⟨fn ° as, h⟩⟧⟩ ∈ pcr.automaton.trans := .intro ..
+      sorry -- step_of_transition h
+
+end
 
 def egraph (pcr : PCR S) : EGraph S pcr.Classes where
   auto     := pcr.automaton
@@ -107,7 +123,8 @@ def egraph (pcr : PCR S) : EGraph S pcr.Classes where
 
 theorem egraph_correct (pcr : PCR S) : pcr.egraph.pcr = pcr := by
   ext t₁ t₂
-  induction t₁ generalizing t₂ <;> cases t₂ <;> try contradiction
+  induction t₁ generalizing t₂
+  cases t₂
   case app.app fn₁ as₁ ih fn₂ as₂ =>
     simp only [egraph, EGraph.pcr] at ih ⊢
     apply Iff.intro (fun h => ?mp) (fun h => ?mpr)

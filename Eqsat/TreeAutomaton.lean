@@ -152,8 +152,6 @@ instance : CoeFun (Hom auto₁ auto₂) (fun _ => Q₁ → Q₂) where
 theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
     Accepts auto₂ (hom q) t := by
   induction t generalizing q
-  case var =>
-    contradiction
   case app ih =>
     have ⟨_, t₁, h⟩ := acc.final
     apply TRS.Steps.tail ?_ <| step_of_transition (hom.trans _ t₁)
