@@ -63,9 +63,9 @@ theorem Args.set_self [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s
 instance [Signature S] {s : S} : Coe (Args s E) (Args s <| S ⨄ E) where
   coe as := (as ·)
 
-inductive Pattern (S V) [Signature S] where
+inductive Pattern (S : Type u) (V : Type v) [Signature S] : Type (max u v) where
   | var (v : V)
-  | app (fn : S) (args : Fin (arity fn) → Pattern S V)
+  | app (fn : S) (args : Args fn <| Pattern S V)
 
 namespace Pattern
 
@@ -76,7 +76,7 @@ instance : Coe V (Pattern S V) where
 
 infixl:arg " ° " => Pattern.app
 
-def size [SizeOf S] [Signature S] [SizeOf V] : Pattern S V → Nat
+def size [SizeOf S] [SizeOf V] : Pattern S V → Nat
   | .var v     => sizeOf v
   | .app fn as => 1 + sizeOf fn + ∑ i, size (as i)
 
@@ -132,9 +132,9 @@ def recOn
     app fn as fun i =>
       match _ : as i with
       | .app fnᵢ asᵢ => recOn (fnᵢ ° asᵢ) app
-termination_by t.size
 decreasing_by
   have := Finset.single_le_sum (a := i) (f := Pattern.size ∘ as) (by simp) (Finset.mem_univ _)
+  simp only [sizeOf]
   grind [Pattern.size]
 
 end Term

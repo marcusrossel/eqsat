@@ -30,15 +30,15 @@ def pcr (graph : EGraph S Q) : PCR S where
     exists c
     have := graph.det h₁ h₂
     simp_all
-  congr h mem := by
+  congr h mem := open TreeAutomaton TRS.Steps in by
     rename_i fn as bs
     simp only [PER.support, and_self] at mem
     obtain ⟨c, hc⟩ := mem
     refine ⟨c, hc, ?_⟩
     have ⟨qs, hq₁, hq₂⟩ := hc.final
-    apply TRS.Steps.tail (TRS.Steps.children fun i => ?_) (TreeAutomaton.step_of_transition hq₁)
+    apply tail (children fun i => ?_) (step_of_transition hq₁)
     have ⟨_, hc₁, hc₂⟩ := h i
-    obtain ⟨rfl⟩ := graph.det hc₁ <| TreeAutomaton.steps_child hq₂ i
+    obtain ⟨rfl⟩ := graph.det hc₁ <| steps_child hq₂ i
     exact hc₂
   reach h i := by
     simp only [PER.support, and_self, Set.mem_setOf_eq] at *
@@ -96,22 +96,11 @@ decreasing_by
   -- (1) prove that the Steps coming out of Accepts.final are smaller than what went in
   -- (2) prove that the Steps coming out of steps_child are smaller than what went in
 
--- TODO: It seems that in both cases, the culprit is a difference in the args to the state (ie the nofun)
 theorem automaton_reachable (pcr : PCR S) : pcr.automaton.Reachable := by
   refine Quotient.ind fun ⟨t, h⟩ => ⟨t, ?_⟩
   induction t
-  case app fn as ih =>
-    replace ih i := ih i (pcr.reach h i)
-    unfold Accepts
-    let qs i := ↑(.ext ⟦⟨as i, pcr.reach h i⟩⟧ : S ⨄ pcr.Classes) ° (fun | ⟨_, _⟩ => by contradiction : Term.Args _)
-    refine TRS.Steps.tail (t₂ := ↑fn ° qs) ?head ?tail
-    case head =>
-      refine TRS.Steps.children fun i => ?_
-      unfold Accepts at ih
-      sorry -- exact ih i
-    case tail =>
-      have h : ⟨fn, fun i => ⟦⟨as i, pcr.reach h i⟩⟧, ⟦⟨fn ° as, h⟩⟧⟩ ∈ pcr.automaton.trans := .intro ..
-      sorry -- step_of_transition h
+  case app ih =>
+    exact .tail (.children fun i => ih i <| pcr.reach h i) (step_of_transition <| .intro ..)
 
 end
 

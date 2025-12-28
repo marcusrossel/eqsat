@@ -112,7 +112,7 @@ private theorem children' {θ : TRS S V} {as} (σ : ArgSubst S n) (hn : n ≤ Si
   induction n
   case zero => exact .refl
   case succ m ih =>
-    apply Steps.trans <| ih σ.drop (by grind) (h ⟨·, by grind⟩)
+    apply trans <| ih σ.drop (by grind) (h ⟨·, by grind⟩)
     rw [← ArgSubst.drop_apply_set]
     exact child <| ArgSubst.drop_apply_get ⟨m, by grind⟩ σ as ▸ h ⟨m, by simp⟩
 
