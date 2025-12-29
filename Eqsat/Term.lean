@@ -133,7 +133,7 @@ def recOn
       match _ : as i with
       | .app fnᵢ asᵢ => recOn (fnᵢ ° asᵢ) app
 decreasing_by
-  have := Finset.single_le_sum (a := i) (f := Pattern.size ∘ as) (by simp) (Finset.mem_univ _)
+  have := Finset.single_le_sum_of_canonicallyOrdered (f := Pattern.size ∘ as) (Finset.mem_univ i)
   simp only [sizeOf]
   grind [Pattern.size]
 

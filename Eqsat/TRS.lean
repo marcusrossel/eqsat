@@ -95,10 +95,6 @@ end HasSteps
 
 namespace Steps
 
-def length {θ : TRS S V} : (Steps θ t₁ t₂) → Nat
-  | .refl _     => 0
-  | .tail hd tl => length hd + 1
-
 def trans {θ : TRS S V} : (Steps θ t₁ t₂) → (Steps θ t₂ t₃) → Steps θ t₁ t₃
   | s, .refl _ => s
   | s, .tail hd tl => .tail (trans s hd) tl

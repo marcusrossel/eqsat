@@ -103,20 +103,23 @@ end
 def Accepts (auto : TreeAutomaton S Q) (q : Q) (t : Term S) : Prop :=
   t -[auto]→* q
 
+namespace Accepts
+
+variable {auto : TreeAutomaton S Q}
+
 @[cases_eliminator]
-theorem Accepts.casesOn
-    {auto : TreeAutomaton S Q} {t : Term S} {motive : (q : Q) → (Accepts auto q t) → Prop} {q : Q}
-    (h : Accepts auto q t)
-    (tail : {t' : Term <| S ⨄ Q} → {q' : Q} → (hd : t -[auto]→* t') → (tl : t' -[auto]→ q') →
-      motive q' (hd.elim (⟨·.tail tl⟩))) :
+theorem casesOn
+    {t : Term S} {motive : (q : Q) → (Accepts auto q t) → Prop} {q : Q} (h : Accepts auto q t)
+    (tail : {t' : Term <| S ⨄ Q} → {q' : Q} → (hd : t -[auto]→* t') → (tl : t' -[auto]→ q') → motive q' (.tail hd tl)) :
     motive q h := by
   have ⟨h⟩ := h
-  cases t; cases h
+  let fn ° as := t
+  cases h
   exact tail ⟨‹_›⟩ ‹_›
 
 -- If a state `q` accepts a term `fn ° as`, then the final step of that acceptance must have been
 -- based on a transition `⟨fn, qs, q⟩ ∈ auto.trans` where `qs` are states which accept `as`.
-theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° as) :
+theorem final (acc : Accepts auto q <| fn ° as) :
     ∃ qs : Args fn Q, ⟨fn, qs, q⟩ ∈ auto.trans ∧ ↑(fn ° as) -[auto]→* fn ° (qs ·) := by
   cases acc
   case tail lhs has h =>
@@ -136,10 +139,11 @@ theorem Accepts.final {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° 
       case ext i _ =>
         exact i.elim0
 
-theorem Accepts.child {auto : TreeAutomaton S Q} (acc : Accepts auto q <| fn ° as) (i) :
-    ∃ qᵢ : Q, as i -[auto]→* qᵢ :=
+theorem child (acc : Accepts auto q <| fn ° as) (i) : ∃ qᵢ : Q, as i -[auto]→* qᵢ :=
   have ⟨_, _, h⟩ := acc.final
   ⟨_, steps_child h i⟩
+
+end Accepts
 
 def Deterministic (auto : TreeAutomaton S Q) : Prop :=
   ∀ {t : Term S} {q₁ q₂ : Q}, (Accepts auto q₁ t) → (Accepts auto q₂ t) → q₁ = q₂
