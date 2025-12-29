@@ -52,49 +52,37 @@ namespace PCR
 
 variable [Signature S] {graph : EGraph S Q}
 
-inductive transitions (pcr : PCR S) : Set (TreeAutomaton.Transition S pcr.Classes)
+inductive IsAutomatonTransition (pcr : PCR S) : (TreeAutomaton.Transition S pcr.Classes) → Prop
   | intro (mem₁ : fn ° as ∈ pcr.support) (mem₂ : ∀ i, as i ∈ pcr.support) :
-    transitions pcr ⟨fn, fun i => ⟦⟨as i, mem₂ i⟩⟧, ⟦⟨fn ° as, mem₁⟩⟧⟩
+    IsAutomatonTransition pcr ⟨fn, fun i => ⟦⟨as i, mem₂ i⟩⟧, ⟦⟨fn ° as, mem₁⟩⟧⟩
 
 def automaton (pcr : PCR S) : TreeAutomaton S pcr.Classes where
-  trans := pcr.transitions
+  trans := { tr | pcr.IsAutomatonTransition tr }
   final := ∅
 
-open TreeAutomaton in section
+open TreeAutomaton Signature.Extended in section
 
 theorem automaton_step_deterministic {pcr : PCR S} {t : Term _} {q₁ q₂ : pcr.Classes}
     (h₁ : t -[pcr.automaton]→ q₁) (h₂ : t -[pcr.automaton]→ q₂) : q₁ = q₂ := by
-  cases t
-  case app fn as =>
-    obtain ⟨_, ⟨mem₁₁, mem₁₂⟩, h₁⟩ := mem_trs_to_trans h₁.rw_of_ext.choose_spec
-    obtain ⟨_, ⟨mem₂₁, mem₂₂⟩, h₂⟩ := mem_trs_to_trans h₂.rw_of_ext.choose_spec
-    simp only [Transition.toRewrite, Rewrite.mk.injEq, Pattern.app.injEq,
-      Signature.Extended.ext.injEq] at h₁ h₂
-    obtain ⟨⟨rfl, rfl⟩, rfl, _⟩ := h₁
-    obtain ⟨⟨⟨rfl, rfl⟩, h⟩, rfl, _⟩ := h₂
-    rename_i fn as₁ _ as₂ _
-    have h i : (⟦⟨as₁ i, mem₁₂ _⟩⟧ : Quotient pcr.supportSetoid) = ⟦⟨as₂ i, mem₂₂ _⟩⟧ := by
-      have := congrFun (eq_of_heq h) i
-      simp_all
-    exact Quotient.sound <| @pcr.congr fn as₁ as₂ (Quotient.eq.mp <| h ·) mem₁₁
+  let fn ° as := t
+  obtain ⟨_, ⟨mem₁₁, mem₁₂⟩, h₁⟩ := mem_trs_to_trans h₁.rw_of_ext.choose_spec
+  obtain ⟨_, ⟨mem₂₁, mem₂₂⟩, h₂⟩ := mem_trs_to_trans h₂.rw_of_ext.choose_spec
+  simp only [Transition.toRewrite, Rewrite.mk.injEq, Pattern.app.injEq, ext.injEq] at h₁ h₂
+  obtain ⟨⟨rfl, rfl⟩, rfl, _⟩ := h₁
+  obtain ⟨⟨⟨rfl, rfl⟩, h⟩, rfl, _⟩ := h₂
+  rename_i fn as₁ _ as₂ _
+  have h i : (⟦⟨as₁ i, mem₁₂ _⟩⟧ : Quotient pcr.supportSetoid) = ⟦⟨as₂ i, mem₂₂ _⟩⟧ := by
+    have := congrFun (eq_of_heq h) i
+    simp_all
+  exact Quotient.sound <| @pcr.congr fn as₁ as₂ (Quotient.eq.mp <| h ·) mem₁₁
 
-theorem automaton_deterministic
-    (pcr : PCR S) {q₁ q₂} (hq₁ : pcr.automaton.Accepts q₁ t) (hq₂ : pcr.automaton.Accepts q₂ t) :
-    q₁ = q₂ := by
-  cases t
-  case app fn as =>
-    have ⟨qs₁, mem₁, h₁⟩ := hq₁.final
-    have ⟨qs₂, mem₂, h₂⟩ := hq₂.final
-    have h := funext fun i => automaton_deterministic pcr (steps_child h₁ i) (steps_child h₂ i)
-    exact automaton_step_deterministic (step_of_transition mem₁) (step_of_transition <| h ▸ mem₂)
-termination_by sizeOf hq₁
-decreasing_by
-  sorry
-  -- We might run into problems here as `Steps` is a `Prop`, so we can't define a length on it.
-  -- I guess we'll have to move it to `Type`.
-  --
-  -- (1) prove that the Steps coming out of Accepts.final are smaller than what went in
-  -- (2) prove that the Steps coming out of steps_child are smaller than what went in
+theorem automaton_deterministic (pcr : PCR S) : pcr.automaton.Deterministic := by
+  intro t q₁ q₂ hq₁ hq₂
+  let fn ° as := t
+  have ⟨qs₁, mem₁, h₁⟩ := hq₁.final
+  have ⟨qs₂, mem₂, h₂⟩ := hq₂.final
+  have h := funext fun i => automaton_deterministic pcr (steps_child h₁ i) (steps_child h₂ i)
+  exact automaton_step_deterministic (step_of_transition mem₁) (step_of_transition <| h ▸ mem₂)
 
 theorem automaton_reachable (pcr : PCR S) : pcr.automaton.Reachable := by
   refine Quotient.ind fun ⟨t, h⟩ => ⟨t, ?_⟩
@@ -113,8 +101,8 @@ def egraph (pcr : PCR S) : EGraph S pcr.Classes where
 theorem egraph_correct (pcr : PCR S) : pcr.egraph.pcr = pcr := by
   ext t₁ t₂
   induction t₁ generalizing t₂
-  cases t₂
-  case app.app fn₁ as₁ ih fn₂ as₂ =>
+  let fn₂ ° as₂ := t₂
+  case app fn₁ as₁ ih =>
     simp only [egraph, EGraph.pcr] at ih ⊢
     apply Iff.intro (fun h => ?mp) (fun h => ?mpr)
     case mp =>
