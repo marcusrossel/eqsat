@@ -148,12 +148,116 @@ structure Hom (auto₁ : TreeAutomaton S Q₁) (auto₂ : TreeAutomaton S Q₂) 
   final : ∀ q ∈ auto₁.final, hom q ∈ auto₂.final
   trans : ∀ t ∈ auto₁.trans, t.map hom ∈ auto₂.trans
 
+namespace Deterministic
+
+variable {auto : TreeAutomaton S Q}
+
+-- Terms t, t₁ and t₂ are in a bistep relation if it is possible that t → t₁ and t → t₂ in a
+-- deterministic automaton. This is only the case if both are substitutions or both rewrite a child
+-- term of t. We prove below that any two steps in a deterministic tree automaton are bisteps.
+inductive Bistep (auto : TreeAutomaton S Q) : Term (S ⨄ Q) → Term (S ⨄ Q) → Term (S ⨄ Q) → Prop
+  | subst (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ auto.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ auto.trs) :
+    Bistep auto lhs rhs₁ rhs₂
+  | child {as : Args fn <| Term (S ⨄ Q)} (step₁ : as i₁ -[auto]→ a₁) (step₁ : as i₂ -[auto]→ a₂) :
+    Bistep auto (fn ° as) (fn ° as[i₁ := a₁]) (fn ° as[i₂ := a₂])
+
+-- It can't be that t → t₁ applies a rewrite rule while t → t₂ rewrites a subterm, as a rewrite rule
+-- can only apply when all of t's children are state variables, and state variables cannot
+-- themselves be rewritten, thus making t → t₂ impossible.
+theorem bistep (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) (det : auto.Deterministic) :
+    Bistep auto t t₁ t₂ :=
+  sorry
+
+-- Note: This theorem is immediately for applicable to any `Bistep.subst`.
+theorem rw_lhs_unique
+    (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ auto.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ auto.trs)
+    (det : auto.Deterministic) : rhs₁ = rhs₂ :=
+  sorry
+
+-- Intuition: If we take single steps t → t₁ and t → t₂, we can always join t₁ and t₂ my mimicking
+--            the step of the other side respectively.
+theorem trs_semiConfluent (det : auto.Deterministic) : auto.trs.SemiConfluent := by
+  intro t t₁ t₂ s₁ s₂
+  cases bistep s₁ s₂ det
+  -- If both steps directly apply a rewrite, then by determinism (by `rw_lhs_unique`) the rewrite
+  -- must have been the same one, so we have t₁ = t₂ and choose t₃ to be the same.
+  case subst _ mem₁ _ mem₂ => exact ⟨t₁, by simp [det.rw_lhs_unique mem₁ mem₂]⟩
+  -- If both steps rewrite a child, there are two possible cases.
+  case child fn i₁ a₁ i₂ a₂ as h₁ h₂ =>
+    -- Case 1: Both steps rewrite the same child. In that case, by induction, those child terms are
+    --         joinable, so t₁ and t₂ are joinable.
+    if hi : i₁ = i₂ then
+      subst hi
+      have ⟨_, ha₁, ha₂⟩ := det.trs_semiConfluent h₁ h₂
+      have s₁ := Args.set_twice as .. ▸ TRS.Steps.child (Args.set_get as i₁ a₁ ▸ ha₁)
+      have s₂ := Args.set_twice as .. ▸ TRS.Steps.child (Args.set_get as i₁ a₂ ▸ ha₂)
+      exact ⟨_, s₁, s₂⟩
+    -- Case 2: Both steps rewrite different children. That is:
+    --         * Step 1 rewrites fn ° as → fn ° as[i₁ := a₁], and
+    --         * Step 2 rewrites fn ° as → fn ° as[i₂ := a₂], with i₁ ≠ i₂.
+    --         In that case, we show that the rewrite of Step 1 can still be applied to the result
+    --         of Step 2, and vice versa. Thus both sides can be rewritten to:
+    --         * fn ° as[i₁ := a₁][i₂ := a₂], and
+    --         * fn ° as[i₂ := a₂][i₁ := a₁], respectively.
+    --         These terms are obviously equal.
+    else
+      have s₁ := TRS.Step.child fn _ <| Args.set_get_ne as a₂ (Ne.symm hi) ▸ h₁
+      have s₂ := TRS.Step.child fn _ <| Args.set_get_ne as a₁ hi ▸ h₂
+      replace s₂ := Args.set_ne_comm as _ _ hi ▸ s₂
+      exact ⟨_, .single s₂, .single s₁⟩
+
+theorem trs_confluent (det : auto.Deterministic) : auto.trs.Confluent :=
+  TRS.SemiConfluent.confluent det.trs_semiConfluent
+
+-- TODO: This might be a bit pointless as the definition of `TreeAutomaton.Determinism` is already
+--       about the TRS.
+--
+-- *Counterexample*
+--
+-- Function symbols: `true` (arity 0), `false` (arity 2)
+-- State Variables: `unit`
+-- Automaton:
+--
+--  [true]→ (unit) ==[false]
+--             ↑__________/
+--
+-- Induced TRS contains: false(true, unit) ← false(true, true) → false(unit, true)
+theorem trs_not_deterministic : ∃ (S Q : Type) (_ : Signature S) (auto : TreeAutomaton S Q),
+    auto.Deterministic ∧ ¬auto.trs.Deterministic := by
+  let sig  : Signature Bool                     := { arity | true => 0 | false => 2 }
+  let tr   : TreeAutomaton.Transition Bool Unit := ⟨true, nofun, .unit⟩
+  let auto : TreeAutomaton Bool Unit            := { trans := { tr }, final := ∅ }
+  let t    : Term (Bool ⨄ Unit)                 := true ° nofun
+  let u    : Term (Bool ⨄ Unit)                 := Unit.unit
+  let tu   : Term.Args (false : Bool ⨄ Unit)    := fun | ⟨0, _⟩ => t | ⟨1, _⟩ => u
+  let ut   : Term.Args (false : Bool ⨄ Unit)    := fun | ⟨0, _⟩ => u | ⟨1, _⟩ => t
+  let tt   : Term.Args (false : Bool ⨄ Unit)    := fun | ⟨0, _⟩ => t | ⟨1, _⟩ => t
+  simp only [TRS.Deterministic, not_forall]
+  have mem : tr.toRewrite ∈ auto.trs := trans_to_mem_trs rfl
+  replace mem : { lhs := true ° nofun, rhs := Unit.unit } ∈ auto.trs := by
+    simp only [Transition.toRewrite, tr] at mem
+    simp [Signature.arity, sig] at *
+    sorry -- `exact mem` -- TODO: What is this nested application in the LHS?
+  refine ⟨Bool, Unit, sig, auto, by simp [Deterministic], false ° tt, false ° tu, false ° ut, ?_, ?_, ?_⟩
+  · have s := TRS.Step.child (fn := (false : Bool ⨄ Unit)) (as := tt) (i := ⟨1, sorry⟩) <| TRS.Step.subst' mem
+    have : tu = tt[1 := u] := sorry
+    exact this ▸ s
+  · have s := TRS.Step.child (fn := (false : Bool ⨄ Unit)) (as := tt) (i := ⟨0, sorry⟩) <| TRS.Step.subst' mem
+    have : ut = tt[0 := u] := sorry
+    exact this ▸ s
+  · intro h
+    injection h with _ h
+    have : tu ⟨0, sorry⟩ = ut ⟨0, sorry⟩ := by rw [h]
+    simp +zetaDelta at this
+
+end Deterministic
+
 variable {auto₁ : TreeAutomaton S Q₁} {auto₂ : TreeAutomaton S Q₂}
 
 instance : CoeFun (Hom auto₁ auto₂) (fun _ => Q₁ → Q₂) where
   coe := Hom.hom
 
-/-- Lemma 2 -/
+/- **Lemma 2** -/
 theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
     Accepts auto₂ (hom q) t := by
   induction t generalizing q

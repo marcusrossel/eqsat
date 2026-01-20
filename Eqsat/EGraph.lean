@@ -1,7 +1,7 @@
 import Eqsat.TreeAutomaton
 import Eqsat.PCR
 
-/-- Definition 3 -/
+/- **Definition 3** -/
 structure EGraph (S Q) [Signature S] extends auto : TreeAutomaton S Q where
   det      : auto.Deterministic
   reach    : auto.Reachable
@@ -18,7 +18,7 @@ abbrev ENode (_ : EGraph S Q) := TreeAutomaton.Transition S Q
 abbrev EClass.Represents (c : EClass graph) (t : Term S) : Prop :=
   graph.Accepts c t
 
-/-- Definition 5 -/
+/- **Definition 5** -/
 def pcr (graph : EGraph S Q) : PCR S where
   rel t₁ t₂ :=
     ∃ c : EClass graph, c.Represents t₁ ∧ c.Represents t₂
@@ -47,7 +47,7 @@ def pcr (graph : EGraph S Q) : PCR S where
 
 end EGraph
 
-/- Theorem 6 -/
+/- **Theorem 6** -/
 namespace PCR
 
 variable [Signature S] {graph : EGraph S Q}
@@ -98,25 +98,19 @@ def egraph (pcr : PCR S) : EGraph S pcr.Classes where
   det      := pcr.automaton_deterministic
   reach    := pcr.automaton_reachable
 
+open EGraph
+
 theorem egraph_correct (pcr : PCR S) : pcr.egraph.pcr = pcr := by
   ext t₁ t₂
-  induction t₁ generalizing t₂
-  let fn₂ ° as₂ := t₂
-  case app fn₁ as₁ ih =>
-    simp only [egraph, EGraph.pcr] at ih ⊢
-    apply Iff.intro (fun h => ?mp) (fun h => ?mpr)
-    case mp =>
-      obtain ⟨c, hc₁, hc₂⟩ := h
-      if hf : fn₁ = fn₂ then
-        subst hf
-        apply pcr.congr fun i => ih i (as₂ i) |>.mp ?_
-        -- TODO: There should be a lemma stating that (∃ c, Represents c t) coincides with
-        --       membership in the PCR's support.
-        · sorry
-        · sorry
-      else
-        sorry
-    case mpr h => sorry
+  have acc₁ : pcr.egraph.Accepts ⟦⟨t₁, sorry⟩⟧ t₁ := sorry
+  have acc₂ : pcr.egraph.Accepts ⟦⟨t₂, sorry⟩⟧ t₂ := sorry
+  apply Iff.intro (fun h => ?mp) (fun h => ?mpr)
+  case mp =>
+    obtain ⟨c, hc₁, hc₂⟩ := h
+    exact Quotient.eq.mp <| pcr.egraph.det acc₂ hc₂ ▸ pcr.egraph.det acc₁ hc₁
+  case mpr h =>
+    replace h : (⟦⟨t₁, sorry⟩⟧ : pcr.Classes) = ⟦⟨t₂, sorry⟩⟧ := sorry
+    exact ⟨_, acc₁, h ▸ acc₂⟩
 
 theorem egraph_unique {pcr : PCR S} (h : pcr = graph.pcr) : graph ≍ pcr.egraph := by
   sorry

@@ -49,19 +49,43 @@ open Signature
 abbrev Args [Signature S] (s : S) (α : Type _) :=
   Fin (arity s) → α
 
+namespace Args
+
+variable [Signature S] {s : S}
+
 @[simp]
-def Args.set [Signature S] {s : S} (as : Args s α) (i : Nat) (a : α) : Args s α :=
+def set (as : Args s α) (i : Nat) (a : α) : Args s α :=
   fun j => if i = j then a else as j
 
 notation:(arg + 1) as "[" i " := " a "]" => Args.set as i a
 
 @[simp]
-theorem Args.set_self [Signature S] {s : S} (as : Args s α) (i : Fin <| arity s) :
-    as[i := as i] = as := by
+theorem set_self (as : Args s α) (i : Fin <| arity s) : as[i := as i] = as := by
+  grind [Args.set]
+
+@[simp]
+theorem set_get (as : Args s α) (i : Fin <| arity s) (a) : as[i := a] i = a := by
+  grind [Args.set]
+
+@[simp]
+theorem set_twice (as : Args s α) (i : Fin <| arity s) (a₁ a₂) :
+    as[i := a₁][i := a₂] = as[i := a₂] := by
+  grind [Args.set]
+
+@[simp]
+theorem set_ne_comm (as : Args s α) (a₁ a₂) {i₁ i₂ : Fin <| arity s} (h : i₁ ≠ i₂) :
+    as[i₁ := a₁][i₂ := a₂] = as[i₂ := a₂][i₁ := a₁] := by
+  grind [Args.set]
+
+@[simp]
+theorem set_get_ne (as : Args s α) (a) {i₁ i₂ : Fin <| arity s} (h : i₁ ≠ i₂) :
+    as[i₁ := a] i₂ = as i₂ := by
   grind [Args.set]
 
 instance [Signature S] {s : S} : Coe (Args s E) (Args s <| S ⨄ E) where
   coe as := (as ·)
+
+end Args
 
 inductive Pattern (S : Type u) (V : Type v) [Signature S] : Type (max u v) where
   | var (v : V)

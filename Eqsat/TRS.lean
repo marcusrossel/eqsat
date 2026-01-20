@@ -29,7 +29,7 @@ abbrev TRS (S V : Type _) [Signature S] :=
 
 namespace TRS
 
-variable {S V} [Signature S]
+variable [Signature S]
 
 inductive Step (θ : TRS S V) : Term S → Term S → Prop where
   | subst (σ : Subst S V) (mem : rw ∈ θ) : Step θ rw.lhs[σ] rw.rhs[σ]
@@ -59,6 +59,7 @@ namespace Steps
 
 notation t₁ " -[" θ "]→* " t₂ => Steps θ t₁ t₂
 
+@[simp]
 theorem refl {θ : TRS S V} : t -[θ]→* t :=
   Relation.ReflTransGen.refl
 
@@ -121,4 +122,23 @@ end Auxiliary
 theorem children {θ : TRS S V} {as bs} (h : ∀ i, as i -[θ]→* bs i) : fn ° as -[θ]→* fn ° bs :=
   ArgSubst.apply_all bs as ▸ children' bs (Nat.le_refl _) (h ⟨·, by grind⟩)
 
-end TRS.Steps
+end Steps
+
+def Deterministic (θ : TRS S Q) : Prop :=
+  ∀ {t t₁ t₂}, (t -[θ]→ t₁) → (t -[θ]→ t₂) → t₁ = t₂
+
+def SemiConfluent (θ : TRS S Q) : Prop :=
+  ∀ {t t₁ t₂},
+    (t -[θ]→ t₁) →
+    (t -[θ]→ t₂) →
+    ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
+
+def Confluent (θ : TRS S Q) : Prop :=
+  ∀ {t t₁ t₂},
+    (t -[θ]→* t₁) →
+    (t -[θ]→* t₂) →
+    ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
+
+-- [TRaaT] Theorem 2.1.5
+theorem SemiConfluent.confluent {θ : TRS S Q} (h : θ.SemiConfluent) : θ.Confluent :=
+  sorry
