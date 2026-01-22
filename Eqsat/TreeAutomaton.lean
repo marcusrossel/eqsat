@@ -37,6 +37,9 @@ theorem trans_to_mem_trs (h : t ∈ auto.trans) : t.toRewrite ∈ auto.trs :=
 theorem mem_trs_to_trans (h : rw ∈ auto.trs) : ∃ t ∈ auto.trans, t.toRewrite = rw :=
   Set.mem_image _ _ _ |>.mp h
 
+theorem step_lhs_is_app (h : t₁ -[auto]→ t₂) : ∃ (fn : S) (as : _), t₁ = ↑fn ° as := by
+  sorry
+
 theorem step_of_transition {fn : S} {qs : Args fn Q} {q : Q} (mem : ⟨fn, qs, q⟩ ∈ auto.trans) :
     fn ° (qs ·) -[auto]→ q :=
   TRS.Step.subst' <| trans_to_mem_trs mem
@@ -148,27 +151,68 @@ structure Hom (auto₁ : TreeAutomaton S Q₁) (auto₂ : TreeAutomaton S Q₂) 
   final : ∀ q ∈ auto₁.final, hom q ∈ auto₂.final
   trans : ∀ t ∈ auto₁.trans, t.map hom ∈ auto₂.trans
 
-namespace Deterministic
+variable {auto : TreeAutomaton S Q} {auto₁ : TreeAutomaton S Q₁} {auto₂ : TreeAutomaton S Q₂}
 
-variable {auto : TreeAutomaton S Q}
+instance : CoeFun (Hom auto₁ auto₂) (fun _ => Q₁ → Q₂) where
+  coe := Hom.hom
 
--- Terms t, t₁ and t₂ are in a bistep relation if it is possible that t → t₁ and t → t₂ in a
--- deterministic automaton. This is only the case if both are substitutions or both rewrite a child
--- term of t. We prove below that any two steps in a deterministic tree automaton are bisteps.
+/- **Lemma 2** -/
+theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
+    Accepts auto₂ (hom q) t := by
+  induction t generalizing q
+  case app ih =>
+    have ⟨_, t₁, h⟩ := acc.final
+    apply TRS.Steps.tail ?_ <| step_of_transition (hom.trans _ t₁)
+    exact TRS.Steps.children (ih · <| steps_child h _)
+
+-- Terms t₁ and t₂ are in a bistep relation with respect to t if both t₁ and t₂ can be reached from
+-- t with the same kind of single step (`subst` or `child`). We prove below that for any two steps
+-- t → t₁ and t → t₂, the respective terms are in a bistep relation.
 inductive Bistep (auto : TreeAutomaton S Q) : Term (S ⨄ Q) → Term (S ⨄ Q) → Term (S ⨄ Q) → Prop
   | subst (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ auto.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ auto.trs) :
     Bistep auto lhs rhs₁ rhs₂
   | child {as : Args fn <| Term (S ⨄ Q)} (step₁ : as i₁ -[auto]→ a₁) (step₁ : as i₂ -[auto]→ a₂) :
     Bistep auto (fn ° as) (fn ° as[i₁ := a₁]) (fn ° as[i₂ := a₂])
 
--- It can't be that t → t₁ applies a rewrite rule while t → t₂ rewrites a subterm, as a rewrite rule
--- can only apply when all of t's children are state variables, and state variables cannot
--- themselves be rewritten, thus making t → t₂ impossible.
-theorem bistep (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) (det : auto.Deterministic) :
-    Bistep auto t t₁ t₂ :=
-  sorry
+-- TODO: Turn `Bistep.of_steps` into a `cases_eliminator`.
 
--- Note: This theorem is immediately for applicable to any `Bistep.subst`.
+-- It can't be that a step t → t₁ applies a rewrite rule directly, while another step t → t₂
+-- rewrites a subterm, as a rewrite rule can only apply when all of t's children are state
+-- variables, and state variables cannot themselves be rewritten, thus making t → t₂ impossible.
+theorem Bistep.of_steps (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) : Bistep auto t t₁ t₂ := by
+  cases s₁ <;> simp only [Subst.apply_no_vars] at *
+  case' subst rw₁ _ mem₁ =>
+    generalize hl : rw₁.lhs = lhs at s₂ ⊢
+    cases s₂
+    -- Case 1: Both are `subst`s.
+    case subst => grind [cases Rewrite, Bistep.subst]
+    -- Case 2: Both are different: contradiction.
+    case' child s₂ =>
+      have ⟨_, _, hi⟩ := step_lhs_is_app s₂
+      have ⟨_, _, htr⟩ := mem_trs_to_trans mem₁
+      injection htr ▸ hl with hl₁ hl₂
+      subst hl₁
+      have := eq_of_heq hl₂ ▸ hi
+      injections
+  case child fn₁ as₁ _ s₁ =>
+    generalize hl : fn₁ ° as₁ = lhs at s₂
+    cases s₂
+    -- Case 3: Both are `child`s.
+    case child s₂ =>
+      injection hl with h₁ h₂
+      subst h₁ h₂
+      exact .child s₁ s₂
+    -- Case 4: Both are different: contradiction.
+    case subst mem₂ =>
+      have ⟨_, _, hi⟩ := step_lhs_is_app s₁
+      have ⟨_, _, htr⟩ := mem_trs_to_trans mem₂
+      injection htr ▸ hl with hl₁ hl₂
+      subst hl₁
+      have := eq_of_heq hl₂ ▸ hi
+      injections
+
+namespace Deterministic
+
 theorem rw_lhs_unique
     (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ auto.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ auto.trs)
     (det : auto.Deterministic) : rhs₁ = rhs₂ :=
@@ -178,7 +222,7 @@ theorem rw_lhs_unique
 --            the step of the other side respectively.
 theorem trs_semiConfluent (det : auto.Deterministic) : auto.trs.SemiConfluent := by
   intro t t₁ t₂ s₁ s₂
-  cases bistep s₁ s₂ det
+  cases Bistep.of_steps s₁ s₂
   -- If both steps directly apply a rewrite, then by determinism (by `rw_lhs_unique`) the rewrite
   -- must have been the same one, so we have t₁ = t₂ and choose t₃ to be the same.
   case subst _ mem₁ _ mem₂ => exact ⟨t₁, by simp [det.rw_lhs_unique mem₁ mem₂]⟩
@@ -251,17 +295,3 @@ theorem trs_not_deterministic : ∃ (S Q : Type) (_ : Signature S) (auto : TreeA
     simp +zetaDelta at this
 
 end Deterministic
-
-variable {auto₁ : TreeAutomaton S Q₁} {auto₂ : TreeAutomaton S Q₂}
-
-instance : CoeFun (Hom auto₁ auto₂) (fun _ => Q₁ → Q₂) where
-  coe := Hom.hom
-
-/- **Lemma 2** -/
-theorem Accepts.hom (acc : Accepts auto₁ q t) (hom : Hom auto₁ auto₂) :
-    Accepts auto₂ (hom q) t := by
-  induction t generalizing q
-  case app ih =>
-    have ⟨_, t₁, h⟩ := acc.final
-    apply TRS.Steps.tail ?_ <| step_of_transition (hom.trans _ t₁)
-    exact TRS.Steps.children (ih · <| steps_child h _)

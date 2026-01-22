@@ -13,7 +13,7 @@ def Subst.apply {S V} [Signature S] (σ : Subst S V) : Pattern S V → Term S
 instance [Signature S] : GetElem (Pattern S V) (Subst S V) (Term S) (fun _ _ => True) where
   getElem p σ _ := σ.apply p
 
-@[simp]
+@[simp, grind =]
 theorem Subst.apply_no_vars [Signature S] (σ : Subst S Empty) (p : Pattern S Empty) : p[σ] = p := by
   induction p
   case var => contradiction
