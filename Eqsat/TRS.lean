@@ -36,6 +36,7 @@ inductive Step (θ : TRS S V) : Term S → Term S → Prop where
   | child (fn : S) (as : Term.Args fn) {i} (step : Step θ (as i) a) : Step θ (fn ° as) (fn ° as[i := a])
 
 notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
+notation t₁ " ←[" θ "]- " t₂ => TRS.Step θ t₂ t₁
 
 theorem Step.subst' {θ : TRS S Empty} (mem : rw ∈ θ) : rw.lhs -[θ]→ rw.rhs := by
   have s := Step.subst nofun mem
@@ -68,6 +69,9 @@ theorem tail {θ : TRS S V} (head : t₁ -[θ]→* t₂) (tail : t₂ -[θ]→ t
 
 theorem trans {θ : TRS S V} (head : t₁ -[θ]→* t₂) (tail : t₂ -[θ]→* t₃) : t₁ -[θ]→* t₃ :=
   Relation.ReflTransGen.trans head tail
+
+theorem single {θ : TRS S V} (s : t₁ -[θ]→ t₂) : t₁ -[θ]→* t₂ :=
+  tail .refl s
 
 theorem child {θ : TRS S V} {as} {i : Fin <| Signature.arity fn} (h : as i -[θ]→* b) :
     fn ° as -[θ]→* fn ° as[i := b] := by
@@ -127,7 +131,7 @@ end Steps
 def Deterministic (θ : TRS S Q) : Prop :=
   ∀ {t t₁ t₂}, (t -[θ]→ t₁) → (t -[θ]→ t₂) → t₁ = t₂
 
-def SemiConfluent (θ : TRS S Q) : Prop :=
+def LocallyConfluent (θ : TRS S Q) : Prop :=
   ∀ {t t₁ t₂},
     (t -[θ]→ t₁) →
     (t -[θ]→ t₂) →
@@ -139,6 +143,7 @@ def Confluent (θ : TRS S Q) : Prop :=
     (t -[θ]→* t₂) →
     ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
 
--- [TRaaT] Theorem 2.1.5
-theorem SemiConfluent.confluent {θ : TRS S Q} (h : θ.SemiConfluent) : θ.Confluent :=
+-- [TRaaT] Lemma 2.7.2
+theorem LocallyConfluent.confluent_of_rev_wf
+    {θ : TRS S Q} (lc : θ.LocallyConfluent) (wf : WellFounded (· ←[θ]- ·)) : θ.Confluent :=
   sorry

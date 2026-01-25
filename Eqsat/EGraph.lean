@@ -18,6 +18,76 @@ abbrev ENode (_ : EGraph S Q) := TreeAutomaton.Transition S Q
 abbrev EClass.Represents (c : EClass graph) (t : Term S) : Prop :=
   graph.Accepts c t
 
+open TreeAutomaton in
+theorem rw_lhs_unique
+    (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ graph.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ graph.trs) :
+    rhs₁ = rhs₂ := by
+  have ⟨tr₁, ht₁, hr₁⟩ := mem_trs_to_trans mem₁
+  have ⟨tr₂, ht₂, hr₂⟩ := mem_trs_to_trans mem₂
+  have s₁ := TRS.Steps.single <| step_of_transition ht₁
+  have s₂ := TRS.Steps.single <| step_of_transition ht₂
+  -- simp only [Transition.toRewrite] at hr₁ ht₂
+  -- unfold Deterministic at det
+  -- specialize @det
+  -- BUG:
+  -- I think determinism of the automaton may only imply lhs-uniqueness of *reachable* transitions.
+  -- Because non-reachable transitions shouldnt affect determinism, as determinism is a statement
+  -- only about *proper/ground* terms (i.e. starting terms not containing automata state vars). So
+  -- if you have transitions laying around which are not reachable, they don't affect determinism,
+  -- but they do break the theorem we're currently trying to prove.
+  --
+  -- So perhaps we can only state `trs_locallyConfluent` over deterministic *and* reachable
+  -- automata, i.e. e-graphs.
+  -- Namely, if we had reachability, we'd get: a given
+  sorry
+
+-- Intuition: If we take single steps t → t₁ and t → t₂, we can always join t₁ and t₂ my mimicking
+--            the step of the other side respectively.
+theorem trs_locallyConfluent (graph : EGraph S Q) : graph.trs.LocallyConfluent := by
+  intro t t₁ t₂ s₁ s₂
+  cases TreeAutomaton.Bistep.of_steps s₁ s₂
+  -- If both steps directly apply a rewrite, then by determinism (by `rw_lhs_unique`) the rewrite
+  -- must have been the same one, so we have t₁ = t₂ and choose t₃ to be the same.
+  case subst _ mem₁ _ mem₂ => exact ⟨t₁, by simp [graph.det.rw_lhs_unique mem₁ mem₂]⟩
+  -- If both steps rewrite a child, there are two possible cases.
+  case child fn i₁ a₁ i₂ a₂ as h₁ h₂ =>
+    -- Case 1: Both steps rewrite the same child. In that case, by induction, those child terms are
+    --         joinable, so t₁ and t₂ are joinable.
+    if hi : i₁ = i₂ then
+      subst hi
+      have ⟨_, ha₁, ha₂⟩ := trs_locallyConfluent graph h₁ h₂
+      have s₁ := Args.set_twice as .. ▸ TRS.Steps.child (Args.set_get as i₁ a₁ ▸ ha₁)
+      have s₂ := Args.set_twice as .. ▸ TRS.Steps.child (Args.set_get as i₁ a₂ ▸ ha₂)
+      exact ⟨_, s₁, s₂⟩
+    -- Case 2: Both steps rewrite different children. That is:
+    --         * Step 1 rewrites fn ° as → fn ° as[i₁ := a₁], and
+    --         * Step 2 rewrites fn ° as → fn ° as[i₂ := a₂], with i₁ ≠ i₂.
+    --         In that case, we show that the rewrite of Step 1 can still be applied to the result
+    --         of Step 2, and vice versa. Thus both sides can be rewritten to:
+    --         * fn ° as[i₁ := a₁][i₂ := a₂], and
+    --         * fn ° as[i₂ := a₂][i₁ := a₁], respectively.
+    --         These terms are obviously equal.
+    else
+      have s₁ := TRS.Step.child fn _ <| Args.set_get_ne as a₂ (Ne.symm hi) ▸ h₁
+      have s₂ := TRS.Step.child fn _ <| Args.set_get_ne as a₁ hi ▸ h₂
+      replace s₂ := Args.set_ne_comm as _ _ hi ▸ s₂
+      exact ⟨_, .single s₂, .single s₁⟩
+
+-- TODO: Can we also prove the opposite direction: any tree automaton with a confluent TRS is an
+--       e-graph?
+--       Perhaps we can use a connection between confluence and PCRs for this? Could this also help
+--       to prove `trs_confluent` in the first place?
+--       What is the overall relationship between the following:
+--
+--       E-Graph ←induces→ PCR
+--          |               ↑
+--        induces           |
+--          ↓               |
+--       confluent trs ←----? [TRaaT]
+--
+theorem trs_confluent (graph : EGraph S Q) : graph.trs.Confluent :=
+  TRS.LocallyConfluent.confluent_of_rev_wf graph.trs_locallyConfluent graph.rev_step_wf
+
 /- **Definition 5** -/
 def pcr (graph : EGraph S Q) : PCR S where
   rel t₁ t₂ :=

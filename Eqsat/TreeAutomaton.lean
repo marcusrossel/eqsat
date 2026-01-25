@@ -27,6 +27,7 @@ def trs (auto : TreeAutomaton S Q) : TRS (S ⨄ Q) Empty :=
   Transition.toRewrite '' auto.trans
 
 notation t₁ " -[" auto "]→ " t₂ => t₁ -[TreeAutomaton.trs auto]→ t₂
+notation t₂ " ←[" auto "]- " t₁ => t₁ -[TreeAutomaton.trs auto]→ t₂
 notation t₁ " -[" auto "]→* " t₂ => t₁ -[TreeAutomaton.trs auto]→* t₂
 
 variable {auto : TreeAutomaton S Q} {fn₁ : S ⨄ Q} {fn₂ : S} in section
@@ -37,8 +38,15 @@ theorem trans_to_mem_trs (h : t ∈ auto.trans) : t.toRewrite ∈ auto.trs :=
 theorem mem_trs_to_trans (h : rw ∈ auto.trs) : ∃ t ∈ auto.trans, t.toRewrite = rw :=
   Set.mem_image _ _ _ |>.mp h
 
-theorem step_lhs_is_app (h : t₁ -[auto]→ t₂) : ∃ (fn : S) (as : _), t₁ = ↑fn ° as := by
-  sorry
+theorem step_lhs_is_proper_app (h : t₁ -[auto]→ t₂) : ∃ (fn : S) (as : _), t₁ = ↑fn ° as := by
+  cases h
+  case subst mem =>
+    have ⟨_, _, h⟩ := mem_trs_to_trans mem
+    simp_all [Transition.toRewrite, ← h]
+  case child fn as _ _ =>
+    cases fn
+    case sig fn _ _ => exists fn, as
+    case ext i _    => exact i.elim0
 
 theorem step_of_transition {fn : S} {qs : Args fn Q} {q : Q} (mem : ⟨fn, qs, q⟩ ∈ auto.trans) :
     fn ° (qs ·) -[auto]→ q :=
@@ -102,6 +110,27 @@ theorem steps_child {as bs} (h : fn ° as -[auto]→* fn ° bs) (i) : as i -[aut
         cases step_child tl i
         case inl h => exact .tail (ih rfl) h
         case inr h => exact h ▸ (ih rfl)
+
+theorem rev_step_subrelation_ELT : Subrelation (· ←[auto]- ·) Term.ELT := by
+  intro t₁ t₂ s
+  -- TODO: You should maybe have a custom cases eliminator for steps on tree automata, as we often
+  --       immediately want to access the underlying transition of the rewrite rule in the `subst`
+  --       case, and use the fact that `fn : S` in the `child` case.
+  induction s
+  case subst mem =>
+    have ⟨_, _, h⟩ := mem_trs_to_trans mem
+    simp [← h, Transition.toRewrite, Subst.apply_no_vars, Term.ELT, Term.esize]
+  case child aᵢ fn as i s ih =>
+    cases fn
+    case ext => exact i.elim0
+    case sig =>
+      simp only [Term.ELT, Term.esize, Args.set, add_lt_add_iff_left] at ih ⊢
+      apply Finset.sum_lt_sum <;> grind
+
+-- Note: We need to consider the reverse direction of the step relation, as otherwise we would have
+--       to talk about it be Noetherian instead of well-founded.
+theorem rev_step_wf : WellFounded (· ←[auto]- ·) :=
+  rev_step_subrelation_ELT.wf Term.ELT.wf
 
 end
 
@@ -188,7 +217,7 @@ theorem Bistep.of_steps (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) : 
     case subst => grind [cases Rewrite, Bistep.subst]
     -- Case 2: Both are different: contradiction.
     case' child s₂ =>
-      have ⟨_, _, hi⟩ := step_lhs_is_app s₂
+      have ⟨_, _, hi⟩ := step_lhs_is_proper_app s₂
       have ⟨_, _, htr⟩ := mem_trs_to_trans mem₁
       injection htr ▸ hl with hl₁ hl₂
       subst hl₁
@@ -204,7 +233,7 @@ theorem Bistep.of_steps (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) : 
       exact .child s₁ s₂
     -- Case 4: Both are different: contradiction.
     case subst mem₂ =>
-      have ⟨_, _, hi⟩ := step_lhs_is_app s₁
+      have ⟨_, _, hi⟩ := step_lhs_is_proper_app s₁
       have ⟨_, _, htr⟩ := mem_trs_to_trans mem₂
       injection htr ▸ hl with hl₁ hl₂
       subst hl₁
@@ -213,49 +242,6 @@ theorem Bistep.of_steps (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) : 
 
 namespace Deterministic
 
-theorem rw_lhs_unique
-    (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ auto.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ auto.trs)
-    (det : auto.Deterministic) : rhs₁ = rhs₂ :=
-  sorry
-
--- Intuition: If we take single steps t → t₁ and t → t₂, we can always join t₁ and t₂ my mimicking
---            the step of the other side respectively.
-theorem trs_semiConfluent (det : auto.Deterministic) : auto.trs.SemiConfluent := by
-  intro t t₁ t₂ s₁ s₂
-  cases Bistep.of_steps s₁ s₂
-  -- If both steps directly apply a rewrite, then by determinism (by `rw_lhs_unique`) the rewrite
-  -- must have been the same one, so we have t₁ = t₂ and choose t₃ to be the same.
-  case subst _ mem₁ _ mem₂ => exact ⟨t₁, by simp [det.rw_lhs_unique mem₁ mem₂]⟩
-  -- If both steps rewrite a child, there are two possible cases.
-  case child fn i₁ a₁ i₂ a₂ as h₁ h₂ =>
-    -- Case 1: Both steps rewrite the same child. In that case, by induction, those child terms are
-    --         joinable, so t₁ and t₂ are joinable.
-    if hi : i₁ = i₂ then
-      subst hi
-      have ⟨_, ha₁, ha₂⟩ := det.trs_semiConfluent h₁ h₂
-      have s₁ := Args.set_twice as .. ▸ TRS.Steps.child (Args.set_get as i₁ a₁ ▸ ha₁)
-      have s₂ := Args.set_twice as .. ▸ TRS.Steps.child (Args.set_get as i₁ a₂ ▸ ha₂)
-      exact ⟨_, s₁, s₂⟩
-    -- Case 2: Both steps rewrite different children. That is:
-    --         * Step 1 rewrites fn ° as → fn ° as[i₁ := a₁], and
-    --         * Step 2 rewrites fn ° as → fn ° as[i₂ := a₂], with i₁ ≠ i₂.
-    --         In that case, we show that the rewrite of Step 1 can still be applied to the result
-    --         of Step 2, and vice versa. Thus both sides can be rewritten to:
-    --         * fn ° as[i₁ := a₁][i₂ := a₂], and
-    --         * fn ° as[i₂ := a₂][i₁ := a₁], respectively.
-    --         These terms are obviously equal.
-    else
-      have s₁ := TRS.Step.child fn _ <| Args.set_get_ne as a₂ (Ne.symm hi) ▸ h₁
-      have s₂ := TRS.Step.child fn _ <| Args.set_get_ne as a₁ hi ▸ h₂
-      replace s₂ := Args.set_ne_comm as _ _ hi ▸ s₂
-      exact ⟨_, .single s₂, .single s₁⟩
-
-theorem trs_confluent (det : auto.Deterministic) : auto.trs.Confluent :=
-  TRS.SemiConfluent.confluent det.trs_semiConfluent
-
--- TODO: This might be a bit pointless as the definition of `TreeAutomaton.Determinism` is already
---       about the TRS.
---
 -- *Counterexample*
 --
 -- Function symbols: `true` (arity 0), `false` (arity 2)

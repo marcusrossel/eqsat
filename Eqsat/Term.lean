@@ -101,8 +101,8 @@ instance : Coe V (Pattern S V) where
 infixl:arg " ° " => Pattern.app
 
 def size [SizeOf S] [SizeOf V] : Pattern S V → Nat
-  | .var v     => sizeOf v
-  | .app fn as => 1 + sizeOf fn + ∑ i, size (as i)
+  | (v : V) => sizeOf v
+  | fn ° as => 1 + sizeOf fn + ∑ i, size (as i)
 
 instance [SizeOf S] [SizeOf V] : SizeOf (Pattern S V) where
   sizeOf := Pattern.size
@@ -160,5 +160,15 @@ decreasing_by
   have := Finset.single_le_sum_of_canonicallyOrdered (f := Pattern.size ∘ as) (Finset.mem_univ i)
   simp only [sizeOf]
   grind [Pattern.size]
+
+def esize : Term (S ⨄ E) → Nat
+  | (e : E) ° _   => 0
+  | (fn : S) ° as => 1 + ∑ i, esize (as i)
+
+def ELT (t₁ t₂ : Term (S ⨄ E)) : Prop :=
+  esize t₁ < esize t₂
+
+theorem ELT.wf : WellFounded <| @ELT S _ E :=
+  InvImage.wf esize Nat.lt_wfRel.wf
 
 end Term
