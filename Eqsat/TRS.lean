@@ -145,5 +145,21 @@ def Confluent (θ : TRS S Q) : Prop :=
 
 -- [TRaaT] Lemma 2.7.2
 theorem LocallyConfluent.confluent_of_rev_wf
-    {θ : TRS S Q} (lc : θ.LocallyConfluent) (wf : WellFounded (· ←[θ]- ·)) : θ.Confluent :=
-  sorry
+    {θ : TRS S Q} (lc : θ.LocallyConfluent) (wf : WellFounded (· ←[θ]- ·)) : θ.Confluent := by
+  intro t t₁ t₂ s₁ s₂
+  let motive t := ∀ t₁ t₂, (t -[θ]→* t₁) → (t -[θ]→* t₂) → ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
+  apply wf.induction (C := motive) t
+  · intro t ih t₁ t₂ s₁ s₂
+    cases s₁.cases_head <;> cases s₂.cases_head <;> subst_vars
+    case inl.inl => exists t₂
+    case inl.inr => exact ⟨t₂, s₂, .refl⟩
+    case inr.inl => exact ⟨t₁, .refl, s₁⟩
+    case inr.inr hy hz =>
+      obtain ⟨_, hy₁, hy₂⟩ := hy
+      obtain ⟨_, hz₁, hz₂⟩ := hz
+      have ⟨_, hu₁, hu₂⟩ := lc hy₁ hz₁
+      have ⟨_, hv₁, hv₂⟩ := ih _ hy₁ _ _ hu₁ hy₂
+      have ⟨_, hw₁, hw₂⟩ := ih _ hz₁ _ _ (.trans hu₂ hv₁) hz₂
+      exact ⟨_, .trans hv₂ hw₁, hw₂⟩
+  · assumption
+  · assumption
