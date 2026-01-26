@@ -18,28 +18,25 @@ abbrev ENode (_ : EGraph S Q) := TreeAutomaton.Transition S Q
 abbrev EClass.Represents (c : EClass graph) (t : Term S) : Prop :=
   graph.Accepts c t
 
-open TreeAutomaton in
-theorem rw_lhs_unique
-    (mem₁ : ⟨lhs, rhs₁, sub₁⟩ ∈ graph.trs) (mem₂ : ⟨lhs, rhs₂, sub₂⟩ ∈ graph.trs) :
+-- Intuition: The rewrites induce two steps lhs → rhs₁ and lhs → rhs₂. We would like to apply
+--            determinism to this, but can't as lhs is not a ground term. However, lhs must have the
+--            form fn(q₁, ..., qₙ) where each qᵢ is a state variable (member of `Q`). Thus, by
+--            reachability for each qᵢ we can obtain a term tᵢ with tᵢ →* qᵢ. Thus, the *ground*
+--            term fn(t₁, ..., tₙ) rewrites to lhs, which then rewrites to rhs₁ and rhs₂
+--            respectively. On these two rewrite sequences we can apply determinism.
+open TreeAutomaton TRS in
+theorem rw_lhs_unique (mem₁ : ⟨lhs, rhs₁, h₁⟩ ∈ graph.trs) (mem₂ : ⟨lhs, rhs₂, h₂⟩ ∈ graph.trs) :
     rhs₁ = rhs₂ := by
-  have ⟨tr₁, ht₁, hr₁⟩ := mem_trs_to_trans mem₁
-  have ⟨tr₂, ht₂, hr₂⟩ := mem_trs_to_trans mem₂
-  have s₁ := TRS.Steps.single <| step_of_transition ht₁
-  have s₂ := TRS.Steps.single <| step_of_transition ht₂
-  -- simp only [Transition.toRewrite] at hr₁ ht₂
-  -- unfold Deterministic at det
-  -- specialize @det
-  -- BUG:
-  -- I think determinism of the automaton may only imply lhs-uniqueness of *reachable* transitions.
-  -- Because non-reachable transitions shouldnt affect determinism, as determinism is a statement
-  -- only about *proper/ground* terms (i.e. starting terms not containing automata state vars). So
-  -- if you have transitions laying around which are not reachable, they don't affect determinism,
-  -- but they do break the theorem we're currently trying to prove.
-  --
-  -- So perhaps we can only state `trs_locallyConfluent` over deterministic *and* reachable
-  -- automata, i.e. e-graphs.
-  -- Namely, if we had reachability, we'd get: a given
-  sorry
+  have ⟨⟨sym₁, srcs₁, dst₁⟩, _, h₁⟩ := mem_trs_to_trans mem₁
+  have ⟨⟨sym₂, srcs₂, dst₂⟩, _, h₂⟩ := mem_trs_to_trans mem₂
+  rw [Transition.toRewrite] at h₁ h₂
+  injections; subst_vars; injections; simp_all only [Pattern.app.injEq, heq_eq_eq]
+  refine ⟨?_, funext (·.elim0)⟩
+  have sᵢ := (graph.reach <| srcs₁ ·)
+  have s  := Steps.children (S := S ⨄ Q) (fn := sym₁) (sᵢ · |>.choose_spec)
+  have s₁ := Steps.trans s <| .single <| .subst' mem₁
+  have s₂ := Steps.trans s <| .single <| .subst' mem₂
+  rw [graph.det (t := sym₁ ° (sᵢ · |>.choose)) s₁ s₂]
 
 -- Intuition: If we take single steps t → t₁ and t → t₂, we can always join t₁ and t₂ my mimicking
 --            the step of the other side respectively.
@@ -48,7 +45,8 @@ theorem trs_locallyConfluent (graph : EGraph S Q) : graph.trs.LocallyConfluent :
   cases TreeAutomaton.Bistep.of_steps s₁ s₂
   -- If both steps directly apply a rewrite, then by determinism (by `rw_lhs_unique`) the rewrite
   -- must have been the same one, so we have t₁ = t₂ and choose t₃ to be the same.
-  case subst _ mem₁ _ mem₂ => exact ⟨t₁, by simp [graph.det.rw_lhs_unique mem₁ mem₂]⟩
+  case subst _ mem₁ _ mem₂ =>
+    exact ⟨t₁, by simp [graph.rw_lhs_unique mem₁ mem₂]⟩
   -- If both steps rewrite a child, there are two possible cases.
   case child fn i₁ a₁ i₂ a₂ as h₁ h₂ =>
     -- Case 1: Both steps rewrite the same child. In that case, by induction, those child terms are
