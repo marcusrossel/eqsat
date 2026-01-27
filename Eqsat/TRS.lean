@@ -143,12 +143,19 @@ def Confluent (θ : TRS S Q) : Prop :=
     (t -[θ]→* t₂) →
     ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
 
+def Terminating (θ : TRS S Q) : Prop :=
+  WellFounded (· ←[θ]- ·)
+
+structure Convergent (θ : TRS S Q) : Prop where
+  confluent   : Confluent θ
+  terminating : Terminating θ
+
 -- [TRaaT] Lemma 2.7.2
-theorem LocallyConfluent.confluent_of_rev_wf
-    {θ : TRS S Q} (lc : θ.LocallyConfluent) (wf : WellFounded (· ←[θ]- ·)) : θ.Confluent := by
+theorem LocallyConfluent.confluent_of_terminating
+    {θ : TRS S Q} (lc : θ.LocallyConfluent) (ter : Terminating θ) : θ.Confluent := by
   intro t t₁ t₂ s₁ s₂
   let motive t := ∀ t₁ t₂, (t -[θ]→* t₁) → (t -[θ]→* t₂) → ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
-  apply wf.induction (C := motive) t
+  apply ter.induction (C := motive) t
   · intro t ih t₁ t₂ s₁ s₂
     cases s₁.cases_head <;> cases s₂.cases_head <;> subst_vars
     case inl.inl => exists t₂

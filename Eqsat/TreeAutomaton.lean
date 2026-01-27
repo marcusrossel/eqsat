@@ -127,9 +127,7 @@ theorem rev_step_subrelation_ELT : Subrelation (· ←[auto]- ·) Term.ELT := by
       simp only [Term.ELT, Term.esize, Args.set, add_lt_add_iff_left] at ih ⊢
       apply Finset.sum_lt_sum <;> grind
 
--- Note: We need to consider the reverse direction of the step relation, as otherwise we would have
---       to talk about it be Noetherian instead of well-founded.
-theorem rev_step_wf : WellFounded (· ←[auto]- ·) :=
+theorem trs_terminating : auto.trs.Terminating :=
   rev_step_subrelation_ELT.wf Term.ELT.wf
 
 end

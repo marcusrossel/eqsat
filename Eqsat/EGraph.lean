@@ -71,20 +71,12 @@ theorem trs_locallyConfluent (graph : EGraph S Q) : graph.trs.LocallyConfluent :
       replace s₂ := Args.set_ne_comm as _ _ hi ▸ s₂
       exact ⟨_, .single s₂, .single s₁⟩
 
--- TODO: Can we also prove the opposite direction: any tree automaton with a confluent TRS is an
---       e-graph?
---       Perhaps we can use a connection between confluence and PCRs for this? Could this also help
---       to prove `trs_confluent` in the first place?
---       What is the overall relationship between the following:
---
---       E-Graph ←induces→ PCR
---          |               ↑
---        induces           |
---          ↓               |
---       confluent trs ←----? [TRaaT]
---
 theorem trs_confluent (graph : EGraph S Q) : graph.trs.Confluent :=
-  TRS.LocallyConfluent.confluent_of_rev_wf graph.trs_locallyConfluent graph.rev_step_wf
+  TRS.LocallyConfluent.confluent_of_terminating graph.trs_locallyConfluent graph.trs_terminating
+
+theorem trs_convergent (graph : EGraph S Q) : graph.trs.Convergent where
+  confluent   := graph.trs_confluent
+  terminating := graph.trs_terminating
 
 /- **Definition 5** -/
 def pcr (graph : EGraph S Q) : PCR S where
