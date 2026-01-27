@@ -4,12 +4,10 @@ namespace TreeAutomaton
 
 variable [Signature S] {auto : TreeAutomaton S Q}
 
--- A given state is reachable (from a ground term) if:
--- 1. it is the destination of a transition for a constant, or
--- 2. it is the destination of a transition where all source states are reachable.
+-- A given state is reachable (from a ground term) if it is the destination of a transition where
+-- all source states are reachable. Note that this condition is vacuously satisfied for constants.
 inductive IsReachableState (auto : TreeAutomaton S Q) : Q → Prop where
-  | const (mem : tr ∈ auto.trans) : (Signature.arity tr.sym = 0) → IsReachableState auto tr.dst
-  | trans (mem : tr ∈ auto.trans) : (∀ i, IsReachableState auto <| tr.srcs i) → IsReachableState auto tr.dst
+  | intro : tr ∈ auto.trans → (∀ i, IsReachableState auto <| tr.srcs i) → IsReachableState auto tr.dst
 
 -- The set of reachable states.
 abbrev ReachableState (auto : TreeAutomaton S Q) : Type :=

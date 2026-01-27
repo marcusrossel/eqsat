@@ -4,6 +4,17 @@ namespace EGraph
 
 variable [Signature S] {graph : EGraph S Q}
 
+/-! Of Note...
+
+The proof that an e-graph has a confluent TRS *almost* works without reachability (i.e. only
+with determinism). Reachability is only required when proving `rw_lhs_unique` as the given
+fomulation of determinism can't be applied directly here.
+
+The proof that any tree automaton with a convergent TRS has an equivalent e-graph *almost* works
+without restricting to reachable states. That is, the proof of determinism would go through without.
+We only need this restriction to prove reachability.
+-/
+
 -- Intuition: The rewrites induce two steps lhs → rhs₁ and lhs → rhs₂. We would like to apply
 --            determinism to this, but can't as lhs is not a ground term. However, lhs must have the
 --            form fn(q₁, ..., qₙ) where each qᵢ is a state variable (member of `Q`). Thus, by
@@ -79,10 +90,6 @@ def ofConvergent (auto : TreeAutomaton S Q) (con : auto.trs.Convergent) (fin : a
   reach q := by
     let ⟨q, hq⟩ := q
     induction hq
-    case const tr mem h =>
-      exists tr.sym ° (h ▸ · |>.elim0)
-      have s := TreeAutomaton.step_of_transition mem
-      sorry -- TODO: Follows from s
-    case trans tr mem h ih =>
+    case intro tr mem h ih =>
       -- TODO: do you need to use termination here?
       sorry
