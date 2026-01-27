@@ -130,6 +130,17 @@ theorem rev_step_subrelation_ELT : Subrelation (· ←[auto]- ·) Term.ELT := by
 theorem trs_terminating : auto.trs.Terminating :=
   rev_step_subrelation_ELT.wf Term.ELT.wf
 
+theorem state_isNF (q : Q) : auto.trs.IsNF q := by
+  intro t h
+  generalize hl : (q : Term <| S ⨄ Q) = lhs at h
+  cases h
+  case subst mem =>
+    have ⟨_, _, ht⟩ := mem_trs_to_trans mem
+    simp_all [Transition.toRewrite, ← ht]
+  case child i _ =>
+    injections; subst_vars
+    exact i.elim0
+
 end
 
 def Accepts (auto : TreeAutomaton S Q) (q : Q) (t : Term S) : Prop :=
@@ -237,45 +248,3 @@ theorem Bistep.of_steps (s₁ : t -[auto]→ t₁) (s₂ : t -[auto]→ t₂) : 
       subst hl₁
       have := eq_of_heq hl₂ ▸ hi
       injections
-
-namespace Deterministic
-
--- *Counterexample*
---
--- Function symbols: `true` (arity 0), `false` (arity 2)
--- State Variables: `unit`
--- Automaton:
---
---  [true]→ (unit) ==[false]
---             ↑__________/
---
--- Induced TRS contains: false(true, unit) ← false(true, true) → false(unit, true)
-theorem trs_not_deterministic : ∃ (S Q : Type) (_ : Signature S) (auto : TreeAutomaton S Q),
-    auto.Deterministic ∧ ¬auto.trs.Deterministic := by
-  let sig  : Signature Bool                     := { arity | true => 0 | false => 2 }
-  let tr   : TreeAutomaton.Transition Bool Unit := ⟨true, nofun, .unit⟩
-  let auto : TreeAutomaton Bool Unit            := { trans := { tr }, final := ∅ }
-  let t    : Term (Bool ⨄ Unit)                 := true ° nofun
-  let u    : Term (Bool ⨄ Unit)                 := Unit.unit
-  let tu   : Term.Args (false : Bool ⨄ Unit)    := fun | ⟨0, _⟩ => t | ⟨1, _⟩ => u
-  let ut   : Term.Args (false : Bool ⨄ Unit)    := fun | ⟨0, _⟩ => u | ⟨1, _⟩ => t
-  let tt   : Term.Args (false : Bool ⨄ Unit)    := fun | ⟨0, _⟩ => t | ⟨1, _⟩ => t
-  simp only [TRS.Deterministic, not_forall]
-  have mem : tr.toRewrite ∈ auto.trs := trans_to_mem_trs rfl
-  replace mem : { lhs := true ° nofun, rhs := Unit.unit } ∈ auto.trs := by
-    simp only [Transition.toRewrite, tr] at mem
-    simp [Signature.arity, sig] at *
-    sorry -- `exact mem` -- TODO: What is this nested application in the LHS?
-  refine ⟨Bool, Unit, sig, auto, by simp [Deterministic], false ° tt, false ° tu, false ° ut, ?_, ?_, ?_⟩
-  · have s := TRS.Step.child (fn := (false : Bool ⨄ Unit)) (as := tt) (i := ⟨1, sorry⟩) <| TRS.Step.subst' mem
-    have : tu = tt[1 := u] := sorry
-    exact this ▸ s
-  · have s := TRS.Step.child (fn := (false : Bool ⨄ Unit)) (as := tt) (i := ⟨0, sorry⟩) <| TRS.Step.subst' mem
-    have : ut = tt[0 := u] := sorry
-    exact this ▸ s
-  · intro h
-    injection h with _ h
-    have : tu ⟨0, sorry⟩ = ut ⟨0, sorry⟩ := by rw [h]
-    simp +zetaDelta at this
-
-end Deterministic

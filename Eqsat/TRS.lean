@@ -131,17 +131,19 @@ end Steps
 def Deterministic (θ : TRS S Q) : Prop :=
   ∀ {t t₁ t₂}, (t -[θ]→ t₁) → (t -[θ]→ t₂) → t₁ = t₂
 
+def Joinable (θ : TRS S Q) (t₁ t₂ : Term S) : Prop :=
+  ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
+
+notation t₁ " ↓[" θ "] " t₂ => Joinable θ t₁ t₂
+
+def IsNF (θ : TRS S Q) (t : Term S) : Prop :=
+  ∀ t', ¬(t -[θ]→ t')
+
 def LocallyConfluent (θ : TRS S Q) : Prop :=
-  ∀ {t t₁ t₂},
-    (t -[θ]→ t₁) →
-    (t -[θ]→ t₂) →
-    ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
+  ∀ {t t₁ t₂}, (t -[θ]→ t₁) → (t -[θ]→ t₂) → t₁ ↓[θ] t₂
 
 def Confluent (θ : TRS S Q) : Prop :=
-  ∀ {t t₁ t₂},
-    (t -[θ]→* t₁) →
-    (t -[θ]→* t₂) →
-    ∃ t₃, (t₁ -[θ]→* t₃) ∧ (t₂ -[θ]→* t₃)
+  ∀ {t t₁ t₂}, (t -[θ]→* t₁) → (t -[θ]→* t₂) → t₁ ↓[θ] t₂
 
 def Terminating (θ : TRS S Q) : Prop :=
   WellFounded (· ←[θ]- ·)
@@ -149,6 +151,10 @@ def Terminating (θ : TRS S Q) : Prop :=
 structure Convergent (θ : TRS S Q) : Prop where
   confluent   : Confluent θ
   terminating : Terminating θ
+
+theorem Confluent.unique_nfs {θ : TRS S Q} (con : Confluent θ) (nf₁ : IsNF θ t₁) (nf₂ : IsNF θ t₂) :
+    (t -[θ]→* t₁) → (t -[θ]→* t₂) → t₁ = t₂ := by
+  sorry
 
 -- [TRaaT] Lemma 2.7.2
 theorem LocallyConfluent.confluent_of_terminating
