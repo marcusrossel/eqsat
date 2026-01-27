@@ -152,10 +152,6 @@ structure Convergent (θ : TRS S Q) : Prop where
   confluent   : Confluent θ
   terminating : Terminating θ
 
-theorem Confluent.unique_nfs {θ : TRS S Q} (con : Confluent θ) (nf₁ : IsNF θ t₁) (nf₂ : IsNF θ t₂) :
-    (t -[θ]→* t₁) → (t -[θ]→* t₂) → t₁ = t₂ := by
-  sorry
-
 -- [TRaaT] Lemma 2.7.2
 theorem LocallyConfluent.confluent_of_terminating
     {θ : TRS S Q} (lc : θ.LocallyConfluent) (ter : Terminating θ) : θ.Confluent := by
@@ -176,3 +172,14 @@ theorem LocallyConfluent.confluent_of_terminating
       exact ⟨_, .trans hv₂ hw₁, hw₂⟩
   · assumption
   · assumption
+
+theorem Confluent.unique_nfs
+    {θ : TRS S Q} (con : Confluent θ) (nf₁ : IsNF θ t₁) (nf₂ : IsNF θ t₂)
+    (s₁ : t -[θ]→* t₁) (s₂ : t -[θ]→* t₂) : t₁ = t₂ := by
+  have ⟨u, u₁, u₂⟩ := con s₁ s₂
+  cases u₁.cases_head
+  case inr s => exact nf₁ _ s.choose_spec.left |>.elim
+  case inl =>
+    cases u₂.cases_head
+    case inr s => exact nf₂ _ s.choose_spec.left |>.elim
+    case inl => simp [*]
