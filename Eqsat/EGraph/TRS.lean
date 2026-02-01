@@ -88,8 +88,25 @@ def ofConvergent (auto : TreeAutomaton S Q) (con : auto.trs.Convergent) (fin : a
     have := TRS.Confluent.unique_nfs con (state_isNF _) (state_isNF _) h₁ h₂
     simp_all
   reach q := by
-    let ⟨q, hq⟩ := q
-    induction hq
-    case intro tr mem h ih =>
-      -- TODO: do you need to use termination here?
-      sorry
+    -- let motive (qt : Term <| S ⨄ auto.ReachableState) := match qt with
+    --   | (q : auto.ReachableState) ° _ => ∃ t : Term S, auto.reachable.Accepts q t
+    --   | _ => True
+    -- have ter : auto.reachable.trs.Terminating := sorry
+    -- apply ter.induction (C := motive) q
+    -- intro qt ih
+    -- unfold motive
+    -- let fn ° as := qt
+    -- split
+    -- on_goal 2 => constructor
+    -- next q' as h =>
+      -- injection h; subst_vars
+      let ⟨q, hq⟩ := q
+      cases hq
+      case intro tr mem hi =>
+        -- by some sort of induction, hi should imply:
+        have hi i : ∃ t : Term S, auto.Accepts (tr.srcs i) t := sorry
+        -- probably need a lemma like: acceptance in an auto implies acceptance in auto.reachable
+        sorry
+
+      -- NEXT: Prove this first, so you don't do all the work of proving the
+      --       reachable-preserves-confluence theorem before knowning that this construction works.

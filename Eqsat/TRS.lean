@@ -35,8 +35,8 @@ inductive Step (θ : TRS S V) : Term S → Term S → Prop where
   | subst (σ : Subst S V) (mem : rw ∈ θ) : Step θ rw.lhs[σ] rw.rhs[σ]
   | child (fn : S) (as : Term.Args fn) {i} (step : Step θ (as i) a) : Step θ (fn ° as) (fn ° as[i := a])
 
-notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
 notation t₁ " ←[" θ "]- " t₂ => TRS.Step θ t₂ t₁
+notation t₁ " -[" θ "]→ " t₂ => TRS.Step θ t₁ t₂
 
 theorem Step.subst' {θ : TRS S Empty} (mem : rw ∈ θ) : rw.lhs -[θ]→ rw.rhs := by
   have s := Step.subst nofun mem
