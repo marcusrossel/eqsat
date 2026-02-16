@@ -1,4 +1,4 @@
-import Eqsat.TreeAutomaton.Reachable
+import Eqsat.TreeAutomaton.Basic
 import Eqsat.PCR
 
 /- **Definition 3** -/

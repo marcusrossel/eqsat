@@ -1,4 +1,5 @@
 import Eqsat.EGraph.Basic
+import Eqsat.TreeAutomaton.Applicable
 
 namespace EGraph
 
@@ -8,7 +9,8 @@ variable [Signature S] {graph : EGraph S Q}
 
 The proof that an e-graph has a confluent TRS *almost* works without reachability (i.e. only
 with determinism). Reachability is only required when proving `rw_lhs_unique` as the given
-fomulation of determinism can't be applied directly here.
+formulation of determinism can't be applied directly here. However, determinism is in fact also
+entirely absent from the proof of `trs_locallyConfluent` and only appears in `rw_lhs_unique`.
 
 The proof that any tree automaton with a convergent TRS has an equivalent e-graph *almost* works
 without restricting to reachable states. That is, the proof of determinism would go through without.
@@ -75,38 +77,22 @@ theorem trs_convergent (graph : EGraph S Q) : graph.trs.Convergent where
   confluent   := graph.trs_confluent
   terminating := graph.trs_terminating
 
--- Every tree automaton with a convergent TRS (and no final states) has an "equivalent" e-graph.
+-- Every tree automaton with a confluent TRS (and no final states) has an "equivalent" e-graph.
 -- By "equivalent" we mean ...
 -- TODO: which we prove in theorem ...
 open TreeAutomaton in
-def ofConvergent (auto : TreeAutomaton S Q) (con : auto.trs.Convergent) (fin : auto.final = ∅) :
-    EGraph S auto.ReachableState where
-  auto := auto.reachable
-  no_final := by simp [reachable, reachableFinal, fin]
+def ofConfluent (auto : TreeAutomaton S Q) (con : auto.trs.Confluent) (fin : auto.final = ∅) :
+    EGraph S auto.ApplicableState where
+  auto := auto.applicable
+  no_final := by simp [applicable, applicableFinal, fin]
+  reach := auto.applicable_trs_reachable
   det h₁ h₂ := by
-    have con : auto.reachable.trs.Confluent := reachable_preserves_confluence con.confluent
+    have con : auto.applicable.trs.Confluent := applicable_preserves_confluence con
     have := TRS.Confluent.unique_nfs con (state_isNF _) (state_isNF _) h₁ h₂
     simp_all
-  reach q := by
-    -- let motive (qt : Term <| S ⨄ auto.ReachableState) := match qt with
-    --   | (q : auto.ReachableState) ° _ => ∃ t : Term S, auto.reachable.Accepts q t
-    --   | _ => True
-    -- have ter : auto.reachable.trs.Terminating := sorry
-    -- apply ter.induction (C := motive) q
-    -- intro qt ih
-    -- unfold motive
-    -- let fn ° as := qt
-    -- split
-    -- on_goal 2 => constructor
-    -- next q' as h =>
-      -- injection h; subst_vars
-      let ⟨q, hq⟩ := q
-      cases hq
-      case intro tr mem hi =>
-        -- by some sort of induction, hi should imply:
-        have hi i : ∃ t : Term S, auto.Accepts (tr.srcs i) t := sorry
-        -- probably need a lemma like: acceptance in an auto implies acceptance in auto.reachable
-        sorry
 
-      -- NEXT: Prove this first, so you don't do all the work of proving the
-      --       reachable-preserves-confluence theorem before knowning that this construction works.
+-- TODO: Something's fishy. We don't need termination for the definition above.
+--       Does this only come in when proving bisimilarity of the resultin e-graph
+--       (ie. auto.applicable) and the input automaton?
+--       Otherwise, couldn't we show that any automaton with a confluent trs has an equivalent
+--       convergent automaton by virture of `trs_convergent`?
