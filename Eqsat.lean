@@ -1,1 +1,2 @@
-import Eqsat.EGraph
+import Eqsat.EGraph.PCR
+import Eqsat.EGraph.TRS

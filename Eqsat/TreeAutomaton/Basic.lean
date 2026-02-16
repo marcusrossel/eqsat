@@ -72,9 +72,10 @@ theorem step_child (h : fn ° as -[auto]→ fn ° bs) (i) : (as i -[auto]→ bs 
       obtain ⟨_, _, rfl⟩ := mem_trs_to_trans mem
       simp [Transition.toRewrite] at hr
   case child j _ =>
-    injection hr with hr hr'
-    subst hr hr'
-    grind [Args.set]
+    injection hl with hl
+    subst hl
+    set_option linter.unusedSimpArgs false in
+    by_cases j = i <;> simp_all [Args.set]
 
 theorem steps_preserve_fn (h : fn₁ ° as -[auto]→* fn₂ ° bs) : fn₁ = fn₂ := by
   generalize hl : fn₁ ° as = lhs at h
